@@ -1,0 +1,22 @@
+openapi: 3.1.0
+info:
+  title: Registro de horas
+  version: 0.1.0
+paths:
+  /api/health:
+    get:
+      tags:
+      - health
+      summary: Health
+      description: Comprueba que la API responde (lo usan el frontend y Cloud Run).
+      operationId: health_api_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Health Api Health Get
