@@ -3,7 +3,13 @@
 Qué se añade o cambia en cada paso, y por qué. Lo más reciente arriba.
 Formato: `## AAAA-MM-DD · rama · resumen`, con una sección por commit.
 
-## 2026-10-02 · feature/fase-0-base · Fase 0: todo arranca en local
+## 2026-10-02 · master · Fase 0: todo arranca en local
+
+### chore: cierre de la Fase 0 tras la prueba en local
+- Probado: Postgres 16 en Docker sano, `alembic upgrade head`, `pytest`, `ruff`, API en `:8000` y front en `:5173` mostrando "API: ok" a través del proxy de Vite.
+- `backend/alembic/versions/.gitkeep`: git no guarda carpetas vacías y sin ella `alembic revision` falla en un clon nuevo.
+- `alembic/env.py` pasado por `ruff format` para que `ruff format --check` quede limpio.
+- Los `.env` se crean en local desde los `.env.example` (no se suben al repo).
 
 ### docs: estructura del repositorio y convenciones
 - `README.md` raíz, `CLAUDE.md`, `.gitignore` raíz.
