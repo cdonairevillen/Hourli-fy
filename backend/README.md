@@ -19,20 +19,42 @@ uv run python scripts/export_openapi.py   # regenerar specs/api/openapi.yaml
 ```
 app/
 ├── main.py          crea la app, CORS y monta los routers bajo /api
-├── core/config.py   Settings (pydantic-settings): lee DATABASE_URL, SECRET_KEY, CORS_ORIGINS de .env
+├── core/
+│   ├── config.py    Settings (pydantic-settings): lee la configuración de .env
+│   ├── security.py  JWT de sesión (cookie) y tokens de invitación (se guarda su hash)
+│   └── google.py    verificación del ID token de Google
 ├── db.py            engine de SQLAlchemy + get_session() (dependencia por petición)
-├── api/             un módulo por grupo de rutas (health.py, ...)
+├── schemas.py       cuerpos de petición y respuesta (Pydantic)
+├── api/             un módulo por grupo de rutas (health, auth, workspaces, invitations)
+│   └── deps.py      dependencias: usuario actual, MemberAccess y OwnerAccess de un espacio
+├── services/        reglas que usan varias rutas (límite de espacios, estado de un link)
 └── models/          tablas SQLModel; se importan en models/__init__.py para que Alembic las vea
 alembic/             migraciones (env.py toma la URL y el metadata de la app)
 scripts/             utilidades (export_openapi.py)
-tests/               pytest, un archivo por grupo de rutas
+tests/               pytest, un archivo por grupo de rutas (conftest.py: BD de pruebas y login falso)
 ```
 
 ## Endpoints
 
-| Método | Ruta          | Uso                        | Rol     |
-| ------ | ------------- | -------------------------- | ------- |
-| GET    | `/api/health` | Comprueba que la API responde | Público |
+"Dueño" = dueño del espacio; "Miembro" = cualquier miembro activo. Si no eres miembro de un
+espacio, sus rutas responden 404 (no 403) para no revelar que existe.
+
+| Método | Ruta | Uso | Rol |
+| ------ | ---- | --- | --- |
+| GET | `/api/health` | Comprueba que la API responde | Público |
+| POST | `/api/auth/google` | Verifica el ID token de Google, crea el usuario la primera vez y pone la cookie | Público |
+| POST | `/api/auth/logout` | Borra la cookie | Todos |
+| GET | `/api/auth/me` | Usuario de la sesión (401 si no hay) | Todos |
+| GET | `/api/workspaces` | Mis espacios (propios e invitados) | Todos |
+| POST | `/api/workspaces` | Crear espacio (máx. 5 propios sin archivar) | Todos |
+| PATCH | `/api/workspaces/{wid}` | Renombrar, archivar/desarchivar, transferir propiedad | Dueño |
+| GET | `/api/workspaces/{wid}/members` | Miembros activos | Miembro |
+| DELETE | `/api/workspaces/{wid}/members/{uid}` | Salir (uid = yo) o expulsar (dueño) | Miembro / Dueño |
+| GET | `/api/workspaces/{wid}/invitations` | Links del espacio y su estado | Dueño |
+| POST | `/api/workspaces/{wid}/invitations` | Crear link (10 días, `max_uses` opcional); el token solo sale aquí | Dueño |
+| DELETE | `/api/workspaces/{wid}/invitations/{id}` | Revocar un link | Dueño |
+| GET | `/api/invitations/{token}` | A qué espacio invita y si sigue valiendo | Público |
+| POST | `/api/invitations/{token}/accept` | Unirse al espacio | Todos |
 
 El contrato completo está en [`specs/api/openapi.yaml`](../specs/api/openapi.yaml).
 
@@ -44,3 +66,13 @@ El contrato completo está en [`specs/api/openapi.yaml`](../specs/api/openapi.ya
 - **Alembic lee la URL de `settings`** y no de `alembic.ini`, para no duplicar credenciales.
   La plantilla de migraciones importa `sqlmodel` porque los modelos usan sus tipos (`AutoString`).
 - **httpx2** en dev: Starlette marca `httpx` como obsoleto para `TestClient`.
+- **Login con Google, sesión propia**: Google solo nos dice quién eres (ID token); a partir de ahí
+  la sesión es un JWT nuestro en una cookie `httpOnly` (JavaScript no puede leerla).
+- **El usuario se identifica por `google_sub`**, no por email: el email de una cuenta de Google puede cambiar.
+- **Tokens de invitación**: aleatorios de 256 bits; en la BD solo su SHA-256. Basta SHA-256 (y no
+  argon2 como con contraseñas) porque un token aleatorio tan largo no se puede adivinar por fuerza bruta.
+- **Límites con `SELECT ... FOR UPDATE`**: crear espacio bloquea la fila del usuario, y aceptar un
+  link bloquea la invitación. Así dos peticiones simultáneas no se saltan el límite de 5 ni `max_uses`.
+- **Nada se borra**: salir/expulsar rellena `memberships.removed_at`; archivar marca `archived`.
+- **Tests sobre Postgres real** (BD `clockify_test`, se crea sola): cada test corre en una
+  transacción que se deshace al acabar, y el login de Google se sustituye por uno falso.

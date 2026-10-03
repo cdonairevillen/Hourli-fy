@@ -20,3 +20,741 @@ paths:
                   type: string
                 type: object
                 title: Response Health Api Health Get
+  /api/auth/google:
+    post:
+      tags:
+      - auth
+      summary: Login With Google
+      description: Recibe el ID token de Google, crea el usuario si es su primera
+        vez y pone la cookie.
+      operationId: login_with_google_api_auth_google_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleLogin'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/auth/logout:
+    post:
+      tags:
+      - auth
+      summary: Logout
+      description: Borra la cookie de sesión.
+      operationId: logout_api_auth_logout_post
+      responses:
+        '204':
+          description: Successful Response
+  /api/auth/me:
+    get:
+      tags:
+      - auth
+      summary: Me
+      description: Usuario de la sesión actual (401 si no hay).
+      operationId: me_api_auth_me_get
+      parameters:
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces:
+    get:
+      tags:
+      - workspaces
+      summary: List My Workspaces
+      description: Espacios en los que soy miembro activo (propios e invitados, archivados
+        incluidos).
+      operationId: list_my_workspaces_api_workspaces_get
+      parameters:
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkspaceRead'
+                title: Response List My Workspaces Api Workspaces Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - workspaces
+      summary: Create Workspace
+      description: Crea un espacio del que soy dueño (y miembro). Máximo 5 propios
+        sin archivar.
+      operationId: create_workspace_api_workspaces_post
+      parameters:
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkspaceCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}:
+    patch:
+      tags:
+      - workspaces
+      summary: Update Workspace
+      description: Renombrar, archivar/desarchivar o transferir la propiedad a otro
+        miembro activo.
+      operationId: update_workspace_api_workspaces__wid__patch
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkspaceUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/members:
+    get:
+      tags:
+      - workspaces
+      summary: List Members
+      description: Miembros activos del espacio, el dueño primero.
+      operationId: list_members_api_workspaces__wid__members_get
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MemberRead'
+                title: Response List Members Api Workspaces  Wid  Members Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/members/{uid}:
+    delete:
+      tags:
+      - workspaces
+      summary: Remove Member
+      description: 'Salir del espacio (uid = yo) o expulsar a alguien (solo el dueño).
+
+
+        No se borra la fila: se marca `removed_at` para que sus horas sigan en los
+        informes.'
+      operationId: remove_member_api_workspaces__wid__members__uid__delete
+      parameters:
+      - name: uid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Uid
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/invitations:
+    get:
+      tags:
+      - workspaces
+      summary: List Invitations
+      description: Links del espacio, los más recientes primero (también caducados
+        y revocados).
+      operationId: list_invitations_api_workspaces__wid__invitations_get
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InvitationRead'
+                title: Response List Invitations Api Workspaces  Wid  Invitations
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - workspaces
+      summary: Create Invitation
+      description: Crea un link que caduca a los 10 días. El token solo se ve en esta
+        respuesta.
+      operationId: create_invitation_api_workspaces__wid__invitations_post
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationCreated'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/invitations/{invitation_id}:
+    delete:
+      tags:
+      - workspaces
+      summary: Revoke Invitation
+      description: 'Revoca un link: deja de servir aunque no haya caducado.'
+      operationId: revoke_invitation_api_workspaces__wid__invitations__invitation_id__delete
+      parameters:
+      - name: invitation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Invitation Id
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/invitations/{token}:
+    get:
+      tags:
+      - invitations
+      summary: Preview Invitation
+      description: 'A qué espacio invita el link y si sigue valiendo. Público: se
+        ve antes de iniciar sesión.'
+      operationId: preview_invitation_api_invitations__token__get
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Token
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationPreview'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/invitations/{token}/accept:
+    post:
+      tags:
+      - invitations
+      summary: Accept Invitation
+      description: Une al usuario al espacio. Si ya era miembro no gasta un uso del
+        link.
+      operationId: accept_invitation_api_invitations__token__accept_post
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Token
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    GoogleLogin:
+      properties:
+        credential:
+          type: string
+          title: Credential
+      type: object
+      required:
+      - credential
+      title: GoogleLogin
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    InvitationCreate:
+      properties:
+        max_uses:
+          anyOf:
+          - type: integer
+            maximum: 100.0
+            minimum: 1.0
+          - type: 'null'
+          title: Max Uses
+      type: object
+      title: InvitationCreate
+    InvitationCreated:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
+        max_uses:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Uses
+        uses:
+          type: integer
+          title: Uses
+        status:
+          type: string
+          enum:
+          - active
+          - expired
+          - revoked
+          - exhausted
+          - archived
+          title: Status
+        token:
+          type: string
+          title: Token
+      type: object
+      required:
+      - id
+      - created_at
+      - expires_at
+      - max_uses
+      - uses
+      - status
+      - token
+      title: InvitationCreated
+    InvitationPreview:
+      properties:
+        workspace_name:
+          type: string
+          title: Workspace Name
+        owner_name:
+          type: string
+          title: Owner Name
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
+        status:
+          type: string
+          enum:
+          - active
+          - expired
+          - revoked
+          - exhausted
+          - archived
+          title: Status
+      type: object
+      required:
+      - workspace_name
+      - owner_name
+      - expires_at
+      - status
+      title: InvitationPreview
+      description: Lo que ve quien abre un link, aunque no haya iniciado sesión.
+    InvitationRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
+        max_uses:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Uses
+        uses:
+          type: integer
+          title: Uses
+        status:
+          type: string
+          enum:
+          - active
+          - expired
+          - revoked
+          - exhausted
+          - archived
+          title: Status
+      type: object
+      required:
+      - id
+      - created_at
+      - expires_at
+      - max_uses
+      - uses
+      - status
+      title: InvitationRead
+    MemberRead:
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        name:
+          type: string
+          title: Name
+        email:
+          type: string
+          title: Email
+        avatar_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Avatar Url
+        is_owner:
+          type: boolean
+          title: Is Owner
+        joined_at:
+          type: string
+          format: date-time
+          title: Joined At
+      type: object
+      required:
+      - user_id
+      - name
+      - email
+      - avatar_url
+      - is_owner
+      - joined_at
+      title: MemberRead
+    UserRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        email:
+          type: string
+          title: Email
+        avatar_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Avatar Url
+      type: object
+      required:
+      - id
+      - name
+      - email
+      - avatar_url
+      title: UserRead
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+    WorkspaceCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 80
+          minLength: 1
+          title: Name
+      type: object
+      required:
+      - name
+      title: WorkspaceCreate
+    WorkspaceRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        owner_id:
+          type: string
+          format: uuid
+          title: Owner Id
+        archived:
+          type: boolean
+          title: Archived
+        is_owner:
+          type: boolean
+          title: Is Owner
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - name
+      - owner_id
+      - archived
+      - is_owner
+      - created_at
+      title: WorkspaceRead
+    WorkspaceUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 80
+            minLength: 1
+          - type: 'null'
+          title: Name
+        archived:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Archived
+        owner_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Owner Id
+      type: object
+      title: WorkspaceUpdate
+      description: 'Todos los campos son opcionales: solo se cambia lo que llega.'

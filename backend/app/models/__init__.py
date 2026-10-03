@@ -1,5 +1,10 @@
 """Modelos SQLModel (tablas).
 
 Cada modelo nuevo se importa aquí para que Alembic lo vea al autogenerar migraciones.
-Las tablas llegan en la Fase 1 (users) y siguientes.
 """
+
+from app.models.invitation import Invitation
+from app.models.user import User
+from app.models.workspace import Membership, Workspace
+
+__all__ = ["Invitation", "Membership", "User", "Workspace"]

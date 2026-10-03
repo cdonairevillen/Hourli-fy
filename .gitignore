@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+.cloud_credentials
+
 
 # Editores y SO
 .vscode/

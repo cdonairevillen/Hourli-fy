@@ -1,13 +1,17 @@
 # not-clockify — Registro de horas
 
-Web interna de registro de horas para un estudio pequeño, pensada para sustituir Clockify.
-Cada trabajador registra su tiempo (manual o con cronómetro) por proyecto, tipología y subtipología;
-el jefe ve los totales quincenales de todos con filtros.
+Web de registro de horas pensada para sustituir Clockify. Se entra con Google, cada uno crea
+espacios aislados (un estudio, un equipo) e invita a su gente con un link. Los miembros registran
+su tiempo (manual o con cronómetro) por proyecto, tipología y subtipología; el dueño del espacio
+ve los totales quincenales de todos con filtros.
 
 - Especificación y plan por fases: doc "Registro de horas — Especificación y plan".
 - [docs/development-workflow.md](docs/development-workflow.md) — ramas, carpetas y forma de trabajar.
 - [docs/CHANGELOG.md](docs/CHANGELOG.md) — qué se ha añadido o cambiado en cada paso.
 - [specs/](specs/README.md) — contrato de la API (`openapi.yaml`) y flujos de usuario.
+
+El login necesita un **OAuth Client ID de Google**: ver "Configurar el login con Google" en
+[docs/CHANGELOG-fase-1.md](docs/CHANGELOG-fase-1.md).
 
 ## Estructura
 
@@ -26,7 +30,8 @@ Requisitos: [uv](https://docs.astral.sh/uv/), Node.js LTS y Docker Desktop.
 
 ```bash
 cp .env.example .env                      # credenciales del Postgres local
-cp backend/.env.example backend/.env      # config del backend
+cp backend/.env.example backend/.env      # config del backend (pon GOOGLE_CLIENT_ID)
+cp frontend/.env.example frontend/.env    # config del front (pon VITE_GOOGLE_CLIENT_ID)
 docker compose up -d db                   # Postgres en :5432
 cd backend && uv run python -m alembic upgrade head # aplicar migraciones
 cd backend && uv run fastapi dev app/main.py   # API en http://localhost:8000 (docs en /docs)
