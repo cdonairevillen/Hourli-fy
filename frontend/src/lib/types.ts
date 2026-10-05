@@ -44,3 +44,27 @@ export type InvitationPreview = {
   expires_at: string
   status: InvitationStatus
 }
+
+// Catálogo. En pantalla, categories = "labels" y subcategories = "sublabels".
+
+export type Project = {
+  id: string
+  name: string
+  color: string
+  archived: boolean
+  created_at: string
+}
+
+export type Subcategory = {
+  id: string
+  category_id: string
+  name: string
+  archived: boolean
+}
+
+export type Category = {
+  id: string
+  name: string
+  archived: boolean
+  subcategories: Subcategory[]
+}

@@ -465,8 +465,438 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/projects:
+    get:
+      tags:
+      - catalog
+      summary: List Projects
+      description: Proyectos del espacio. Por defecto solo los activos (los que salen
+        en la app).
+      operationId: list_projects_api_workspaces__wid__projects_get
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: include_archived
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Archived
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProjectRead'
+                title: Response List Projects Api Workspaces  Wid  Projects Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - catalog
+      summary: Create Project
+      operationId: create_project_api_workspaces__wid__projects_post
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/projects/{project_id}:
+    patch:
+      tags:
+      - catalog
+      summary: Update Project
+      description: Renombrar, cambiar color o archivar/desarchivar.
+      operationId: update_project_api_workspaces__wid__projects__project_id__patch
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/categories:
+    get:
+      tags:
+      - catalog
+      summary: List Categories
+      description: Labels del espacio, cada una con sus sublabels. Por defecto solo
+        las activas.
+      operationId: list_categories_api_workspaces__wid__categories_get
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: include_archived
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Archived
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryRead'
+                title: Response List Categories Api Workspaces  Wid  Categories Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - catalog
+      summary: Create Category
+      operationId: create_category_api_workspaces__wid__categories_post
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogItemCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/categories/{category_id}:
+    patch:
+      tags:
+      - catalog
+      summary: Update Category
+      description: 'Renombrar o archivar/desarchivar. Archivarla no toca sus sublabels:
+        al no salir la
+
+        label en los desplegables, sus sublabels tampoco.'
+      operationId: update_category_api_workspaces__wid__categories__category_id__patch
+      parameters:
+      - name: category_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Category Id
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogItemUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/categories/{category_id}/subcategories:
+    post:
+      tags:
+      - catalog
+      summary: Create Subcategory
+      operationId: create_subcategory_api_workspaces__wid__categories__category_id__subcategories_post
+      parameters:
+      - name: category_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Category Id
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogItemCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubcategoryRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/categories/{category_id}/subcategories/{subcategory_id}:
+    patch:
+      tags:
+      - catalog
+      summary: Update Subcategory
+      operationId: update_subcategory_api_workspaces__wid__categories__category_id__subcategories__subcategory_id__patch
+      parameters:
+      - name: category_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Category Id
+      - name: subcategory_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Subcategory Id
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogItemUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubcategoryRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    CatalogItemCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 80
+          minLength: 1
+          title: Name
+      type: object
+      required:
+      - name
+      title: CatalogItemCreate
+      description: 'Crear una tipología o una subtipología: solo lleva nombre.'
+    CatalogItemUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 80
+            minLength: 1
+          - type: 'null'
+          title: Name
+        archived:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Archived
+      type: object
+      title: CatalogItemUpdate
+    CategoryRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        archived:
+          type: boolean
+          title: Archived
+        subcategories:
+          items:
+            $ref: '#/components/schemas/SubcategoryRead'
+          type: array
+          title: Subcategories
+      type: object
+      required:
+      - id
+      - name
+      - archived
+      - subcategories
+      title: CategoryRead
     GoogleLogin:
       properties:
         credential:
@@ -642,6 +1072,95 @@ components:
       - is_owner
       - joined_at
       title: MemberRead
+    ProjectCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 80
+          minLength: 1
+          title: Name
+        color:
+          type: string
+          pattern: ^#[0-9a-fA-F]{6}$
+          title: Color
+          default: '#3b82f6'
+      type: object
+      required:
+      - name
+      title: ProjectCreate
+    ProjectRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        color:
+          type: string
+          title: Color
+        archived:
+          type: boolean
+          title: Archived
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - name
+      - color
+      - archived
+      - created_at
+      title: ProjectRead
+    ProjectUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 80
+            minLength: 1
+          - type: 'null'
+          title: Name
+        color:
+          anyOf:
+          - type: string
+            pattern: ^#[0-9a-fA-F]{6}$
+          - type: 'null'
+          title: Color
+        archived:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Archived
+      type: object
+      title: ProjectUpdate
+      description: Solo se cambia lo que llega.
+    SubcategoryRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        category_id:
+          type: string
+          format: uuid
+          title: Category Id
+        name:
+          type: string
+          title: Name
+        archived:
+          type: boolean
+          title: Archived
+      type: object
+      required:
+      - id
+      - category_id
+      - name
+      - archived
+      title: SubcategoryRead
     UserRead:
       properties:
         id:

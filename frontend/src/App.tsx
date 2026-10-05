@@ -51,7 +51,8 @@ function PrivateApp() {
       </header>
       <Routes>
         <Route path="/" element={<WorkspacesPage />} />
-        <Route path="/w/:wid" element={<WorkspacePage />} />
+        <Route path="/w/:wid" element={<WorkspacePage tab="team" />} />
+        <Route path="/w/:wid/catalogo" element={<WorkspacePage tab="catalog" />} />
         <Route path="*" element={<p>Página no encontrada.</p>} />
       </Routes>
     </div>

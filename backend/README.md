@@ -25,7 +25,7 @@ app/
 │   └── google.py    verificación del ID token de Google
 ├── db.py            engine de SQLAlchemy + get_session() (dependencia por petición)
 ├── schemas.py       cuerpos de petición y respuesta (Pydantic)
-├── api/             un módulo por grupo de rutas (health, auth, workspaces, invitations)
+├── api/             un módulo por grupo de rutas (health, auth, workspaces, invitations, catalog)
 │   └── deps.py      dependencias: usuario actual, MemberAccess y OwnerAccess de un espacio
 ├── services/        reglas que usan varias rutas (límite de espacios, estado de un link)
 └── models/          tablas SQLModel; se importan en models/__init__.py para que Alembic las vea
@@ -55,6 +55,17 @@ espacio, sus rutas responden 404 (no 403) para no revelar que existe.
 | DELETE | `/api/workspaces/{wid}/invitations/{id}` | Revocar un link | Dueño |
 | GET | `/api/invitations/{token}` | A qué espacio invita y si sigue valiendo | Público |
 | POST | `/api/invitations/{token}/accept` | Unirse al espacio | Todos |
+| GET | `/api/workspaces/{wid}/projects?include_archived=` | Proyectos (por defecto, solo activos) | Miembro |
+| POST | `/api/workspaces/{wid}/projects` | Crear proyecto (`name`, `color` #RRGGBB) | Dueño |
+| PATCH | `/api/workspaces/{wid}/projects/{id}` | Renombrar, cambiar color, archivar/desarchivar | Dueño |
+| GET | `/api/workspaces/{wid}/categories?include_archived=` | Labels con sus sublabels anidadas | Miembro |
+| POST | `/api/workspaces/{wid}/categories` | Crear label | Dueño |
+| PATCH | `/api/workspaces/{wid}/categories/{id}` | Renombrar, archivar/desarchivar label | Dueño |
+| POST | `/api/workspaces/{wid}/categories/{cid}/subcategories` | Crear sublabel | Dueño |
+| PATCH | `/api/workspaces/{wid}/categories/{cid}/subcategories/{sid}` | Renombrar, archivar/desarchivar sublabel | Dueño |
+
+En el código las labels son `categories` (tipologías) y las sublabels `subcategories`.
+Las escrituras en un espacio archivado devuelven 409; un nombre repetido, también 409.
 
 El contrato completo está en [`specs/api/openapi.yaml`](../specs/api/openapi.yaml).
 
@@ -74,5 +85,8 @@ El contrato completo está en [`specs/api/openapi.yaml`](../specs/api/openapi.ya
 - **Límites con `SELECT ... FOR UPDATE`**: crear espacio bloquea la fila del usuario, y aceptar un
   link bloquea la invitación. Así dos peticiones simultáneas no se saltan el límite de 5 ni `max_uses`.
 - **Nada se borra**: salir/expulsar rellena `memberships.removed_at`; archivar marca `archived`.
+- **Nombres únicos los decide la BD**: el catálogo no comprueba con un SELECT antes de insertar
+  (dos peticiones a la vez pasarían las dos); se captura el `IntegrityError` de la restricción
+  única y se devuelve 409.
 - **Tests sobre Postgres real** (BD `clockify_test`, se crea sola): cada test corre en una
   transacción que se deshace al acabar, y el login de Google se sustituye por uno falso.

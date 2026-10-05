@@ -19,7 +19,8 @@ src/
 ├── pages/
 │   ├── LoginPage.tsx       botón de Google
 │   ├── WorkspacesPage.tsx  /               mis espacios + crear uno
-│   ├── WorkspacePage.tsx   /w/:wid         ajustes, miembros e invitaciones
+│   ├── WorkspacePage.tsx   /w/:wid         pestaña Equipo: ajustes, miembros, invitaciones
+│   │                       /w/:wid/catalogo  pestaña Catálogo: proyectos y labels
 │   └── InvitePage.tsx      /invite/:token  ver y aceptar una invitación
 ├── lib/
 │   ├── api.ts          apiGet/apiPost/apiPatch/apiDelete con cookies; ApiError con el detail de FastAPI
@@ -28,6 +29,7 @@ src/
 │   └── utils.ts        cn() para combinar clases de Tailwind
 └── components/
     ├── GoogleLoginButton.tsx  carga Google Identity Services y manda el ID token a la API
+    ├── catalog/        ProjectsCard, CategoriesCard (labels + sublabels) e ItemActions (renombrar, archivar, crear)
     └── ui/             componentes de shadcn (se añaden con `npx shadcn@latest add <nombre>`)
 ```
 

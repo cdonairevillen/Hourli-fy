@@ -2,9 +2,9 @@
 
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
 
 class GoogleLogin(BaseModel):
@@ -78,3 +78,57 @@ class InvitationPreview(BaseModel):
     owner_name: str
     expires_at: datetime
     status: InvitationStatus
+
+
+# --- Catálogo: proyectos, tipologías ("labels") y subtipologías ("sublabels") ---
+
+CatalogName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
+# Color en hex: el front ofrece una paleta, pero la API acepta cualquier #RRGGBB.
+HexColor = Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$")]
+DEFAULT_PROJECT_COLOR = "#3b82f6"
+
+
+class ProjectCreate(BaseModel):
+    name: CatalogName
+    color: HexColor = DEFAULT_PROJECT_COLOR
+
+
+class ProjectUpdate(BaseModel):
+    """Solo se cambia lo que llega."""
+
+    name: CatalogName | None = None
+    color: HexColor | None = None
+    archived: bool | None = None
+
+
+class ProjectRead(BaseModel):
+    id: uuid.UUID
+    name: str
+    color: str
+    archived: bool
+    created_at: datetime
+
+
+class CatalogItemCreate(BaseModel):
+    """Crear una tipología o una subtipología: solo lleva nombre."""
+
+    name: CatalogName
+
+
+class CatalogItemUpdate(BaseModel):
+    name: CatalogName | None = None
+    archived: bool | None = None
+
+
+class SubcategoryRead(BaseModel):
+    id: uuid.UUID
+    category_id: uuid.UUID
+    name: str
+    archived: bool
+
+
+class CategoryRead(BaseModel):
+    id: uuid.UUID
+    name: str
+    archived: bool
+    subcategories: list[SubcategoryRead]

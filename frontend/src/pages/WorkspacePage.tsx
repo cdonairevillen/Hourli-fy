@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, NavLink, useNavigate, useParams } from 'react-router'
+import { CategoriesCard } from '@/components/catalog/CategoriesCard'
+import { ProjectsCard } from '@/components/catalog/ProjectsCard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,8 +23,9 @@ function formatDate(value: string) {
   return new Date(value).toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })
 }
 
-// Gestión de un espacio: datos, miembros e invitaciones (estas dos últimas, solo el dueño).
-export function WorkspacePage() {
+// Gestión de un espacio en dos pestañas: "Equipo" (ajustes, miembros e invitaciones) y
+// "Catálogo" (proyectos y labels). Lo que es solo del dueño se oculta a los miembros.
+export function WorkspacePage({ tab }: { tab: 'team' | 'catalog' }) {
   const { wid = '' } = useParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -82,19 +85,48 @@ export function WorkspacePage() {
         <p className="text-sm text-destructive">{(update.error ?? leave.error)?.message}</p>
       )}
 
-      {workspace.is_owner && (
-        <SettingsCard workspace={workspace} onSave={(body) => update.mutate(body)} />
+      <nav className="flex gap-1 border-b">
+        <TabLink to={`/w/${wid}`}>Equipo</TabLink>
+        <TabLink to={`/w/${wid}/catalogo`}>Catálogo</TabLink>
+      </nav>
+
+      {tab === 'team' && (
+        <>
+          {workspace.is_owner && (
+            <SettingsCard workspace={workspace} onSave={(body) => update.mutate(body)} />
+          )}
+          <MembersCard
+            workspace={workspace}
+            meId={me.data?.id}
+            onTransfer={(member) =>
+              confirm(`¿Transferir el espacio a ${member.name}? Dejarás de ser el dueño.`) &&
+              update.mutate({ owner_id: member.user_id })
+            }
+          />
+          {workspace.is_owner && !workspace.archived && <InvitationsCard wid={wid} />}
+        </>
       )}
-      <MembersCard
-        workspace={workspace}
-        meId={me.data?.id}
-        onTransfer={(member) =>
-          confirm(`¿Transferir el espacio a ${member.name}? Dejarás de ser el dueño.`) &&
-          update.mutate({ owner_id: member.user_id })
-        }
-      />
-      {workspace.is_owner && !workspace.archived && <InvitationsCard wid={wid} />}
+      {tab === 'catalog' && (
+        <>
+          <ProjectsCard workspace={workspace} />
+          <CategoriesCard workspace={workspace} />
+        </>
+      )}
     </div>
+  )
+}
+
+function TabLink({ to, children }: { to: string; children: string }) {
+  return (
+    <NavLink
+      to={to}
+      end
+      className={({ isActive }) =>
+        `-mb-px border-b-2 px-3 py-2 text-sm ${isActive ? 'border-primary font-medium' : 'border-transparent text-muted-foreground hover:text-foreground'}`
+      }
+    >
+      {children}
+    </NavLink>
   )
 }
 

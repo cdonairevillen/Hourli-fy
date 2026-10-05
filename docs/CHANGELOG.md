@@ -3,6 +3,10 @@
 Qué se añade o cambia en cada paso, y por qué. Lo más reciente arriba.
 Formato: `## AAAA-MM-DD · rama · resumen`, con una sección por commit.
 
+## 2026-10-05 · master · Fase 2: catálogo (proyectos, labels y sublabels)
+
+Detalle completo, qué hay que saber y commits propuestos en [CHANGELOG-fase-2.md](CHANGELOG-fase-2.md).
+
 ## 2026-10-02 · master · Fase 1: login con Google y espacios
 
 Detalle completo, qué hay que saber y commits propuestos en [CHANGELOG-fase-1.md](CHANGELOG-fase-1.md).

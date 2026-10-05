@@ -72,6 +72,8 @@ def make_client(
     """Fábrica de clientes. `make_client("ana")` devuelve uno con la sesión de Ana iniciada;
     sin argumento, uno anónimo. Cada cliente guarda sus propias cookies."""
     monkeypatch.setattr(settings, "google_client_id", "test-client-id")
+    # Clave fija de 32+ bytes: los tests no dependen del SECRET_KEY de .env (ni avisa PyJWT).
+    monkeypatch.setattr(settings, "secret_key", "clave-de-tests-con-al-menos-32-bytes")
     app.dependency_overrides[get_session] = lambda: db
     app.dependency_overrides[get_google_verifier] = lambda: fake_google_verifier
 
