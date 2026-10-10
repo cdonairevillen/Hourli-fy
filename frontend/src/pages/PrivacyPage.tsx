@@ -16,7 +16,7 @@ export function PrivacyPage() {
 
       <h2 className="text-lg font-semibold">Quién es el responsable</h2>
       <p>
-        [NOMBRE O RAZÓN SOCIAL DEL RESPONSABLE], contacto: [EMAIL DE CONTACTO]. Escríbenos para
+        Chrystian Donaire, contacto: cdonairevillen@gmail.com. Escríbenos para
         cualquier duda o para ejercer tus derechos.
       </p>
 
@@ -56,7 +56,7 @@ export function PrivacyPage() {
 
       <h2 className="text-lg font-semibold">Dónde se guardan</h2>
       <p>
-        En una base de datos de Supabase ([REGIÓN]) y en servidores de Google Cloud ([REGIÓN]).
+        En una base de datos de Supabase (UE, Irlanda) y en servidores de Google Cloud (región europe-west1, Bélgica).
         Los emails de recuperación de contraseña se envían con Resend. Los tres actúan como
         encargados del tratamiento.
       </p>
@@ -74,10 +74,10 @@ export function PrivacyPage() {
       <h2 className="text-lg font-semibold">Tus derechos</h2>
       <p>
         Puedes pedir acceso, rectificación, supresión, oposición, limitación y portabilidad de tus
-        datos escribiendo a [EMAIL DE CONTACTO], y reclamar ante la Agencia Española de Protección
+        datos escribiendo a cdonairevillen@gmail.com, y reclamar ante la Agencia Española de Protección
         de Datos (aepd.es).
       </p>
-      <p className="text-muted-foreground">Última actualización: [FECHA].</p>
+      <p className="text-muted-foreground">Última actualización: 10/10/2026.</p>
     </main>
   )
 }
