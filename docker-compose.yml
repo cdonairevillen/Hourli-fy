@@ -8,7 +8,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-clockify}
       POSTGRES_DB: ${POSTGRES_DB:-clockify}
     ports:
-      - "5432:5432"
+      # Solo desde este equipo: "5432:5432" lo abriría a toda la red local.
+      - "127.0.0.1:5432:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
