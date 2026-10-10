@@ -19,17 +19,30 @@ src/
 ├── pages/
 │   ├── LoginPage.tsx       botón de Google
 │   ├── WorkspacesPage.tsx  /               mis espacios + crear uno
-│   ├── WorkspacePage.tsx   /w/:wid         pestaña Equipo: ajustes, miembros, invitaciones
-│   │                       /w/:wid/catalogo  pestaña Catálogo: proyectos y labels
+│   ├── WorkspacePage.tsx   pestañas del espacio: /w/:wid (Proyectos), /hoja (Mi hoja), /panel (dueño),
+│   │                       /catalogo (proyectos y labels), /equipo (ajustes y borrar espacio,
+│   │                       miembros y permisos por proyecto, invitaciones al espacio o a un proyecto)
+│   ├── ProjectSheetPage.tsx  /w/:wid/p/:pid  hoja de un proyecto: nueva tarea y mis tareas por día
+│   ├── AccountPage.tsx     /cuenta         mis datos, contraseña y eliminar la cuenta
+│   ├── PasswordRecoveryPages.tsx  /recuperar y /recuperar/:token (públicas)
+│   ├── PrivacyPage.tsx     /privacidad     política de privacidad (pública; borrador)
 │   └── InvitePage.tsx      /invite/:token  ver y aceptar una invitación
 ├── lib/
 │   ├── api.ts          apiGet/apiPost/apiPatch/apiDelete con cookies; ApiError con el detail de FastAPI
 │   ├── auth.ts         useMe(): usuario de la sesión o null
 │   ├── types.ts        tipos de las respuestas (espejo de backend/app/schemas.py)
+│   ├── time.ts         fechas en hora de España (dayKey 'AAAA-MM-DD', semanas, quincenas, local → UTC)
+│   ├── catalog.ts      useCatalog(): proyectos y labels con búsqueda por id
+│   ├── entries.ts      useCurrentTimer(), useNow() y refresco tras cambios
+│   ├── reports.ts      tipos del panel
 │   └── utils.ts        cn() para combinar clases de Tailwind
 └── components/
+    ├── auth/AuthPanel.tsx  entrar / crear cuenta con email y contraseña (+ Google si está configurado)
     ├── GoogleLoginButton.tsx  carga Google Identity Services y manda el ID token a la API
     ├── catalog/        ProjectsCard, CategoriesCard (labels + sublabels) e ItemActions (renombrar, archivar, crear)
+    ├── entries/        TimerBar (cabecera), TaskForm, EntryRow, LabelPicker, ProjectLinks, TimesheetCard
+    ├── reports/        ReportPanel (filtros, totales, lista) y DailyHoursChart (gráfica SVG por día)
+    ├── NativeSelect.tsx  <select> nativo con el estilo de <Input>
     └── ui/             componentes de shadcn (se añaden con `npx shadcn@latest add <nombre>`)
 ```
 
@@ -37,10 +50,25 @@ src/
 
 - **Proxy de Vite** (`vite.config.ts`): en desarrollo, `/api/*` se reenvía a `http://127.0.0.1:8000`.
   El navegador ve un único origen, así que no hace falta CORS y la cookie de login (Fase 1) funciona sin más.
-- **`VITE_API_URL`**: vacío en local. En producción (Cloudflare Pages) será la URL del backend en Cloud Run.
-- **`VITE_GOOGLE_CLIENT_ID`** (`frontend/.env`): el mismo Client ID que `GOOGLE_CLIENT_ID` del backend.
+- **`VITE_API_URL`**: vacío en local y en producción. En Cloudflare Pages, `/api/*` lo reenvía a
+  Cloud Run la Pages Function `functions/api/[[path]].js` (variable `API_ORIGIN`), igual que el
+  proxy de Vite en local: un único origen, sin CORS y con la cookie del propio dominio.
+- **`VITE_ADMIN_URL`**: vacío en local (`/admin/` por el proxy). En producción, la URL de Cloud Run
+  con `/admin/`: el panel se abre directamente en la API.
+- **`VITE_GOOGLE_CLIENT_ID`** (`frontend/.env`, opcional): el mismo Client ID que `GOOGLE_CLIENT_ID`
+  del backend. Si falta, el botón de Google no aparece y se entra con email y contraseña.
+- **Proxy de `/admin`** con `changeOrigin: false`: SQLAdmin construye sus links con la cabecera
+  `Host`; si el proxy la cambiara a `127.0.0.1:8000`, el navegador saldría del origen del front
+  y perdería la cookie de sesión.
 - **React Router** (`react-router`) para las páginas. La invitación tiene su propia página:
   si no hay sesión, el botón de Google sale ahí mismo y tras entrar sigues en la invitación.
+- **Horas siempre en España**: la API habla en UTC y `lib/time.ts` convierte con `Intl` y la zona
+  `Europe/Madrid`, así que todo funciona igual aunque el navegador esté en otra zona horaria.
+- **El cronómetro lo lleva el servidor**: el front solo pinta `ahora - inicio` cada segundo, así
+  que sobrevive a recargar la página o a cambiar de equipo.
+- **Gráficas sin librería**: `DailyHoursChart` es SVG a mano (una serie, un color `--series-1`,
+  barras finas, tooltip también con teclado y botón "Ver como tabla"). La paleta de colores de
+  proyectos es la de referencia de dataviz, validada para daltonismo.
 - **Sesión en cookie `httpOnly`**: el front no guarda tokens; pregunta `/auth/me` para saber quién es.
   Al salir se vacía la caché de TanStack Query para no mostrar datos de la sesión anterior.
 - **TanStack Query** gestiona las peticiones: caché, estados de carga/error y reintentos sin escribirlos a mano.

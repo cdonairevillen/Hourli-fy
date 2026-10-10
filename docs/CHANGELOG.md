@@ -3,6 +3,47 @@
 Qué se añade o cambia en cada paso, y por qué. Lo más reciente arriba.
 Formato: `## AAAA-MM-DD · rama · resumen`, con una sección por commit.
 
+## 2026-10-10 · master · Preparar el despliegue y copias de seguridad
+
+Guía paso a paso en [DESPLIEGUE.md](DESPLIEGUE.md), pensada para hacerlo solo y desde el navegador.
+
+- `backend/Dockerfile` y `.dockerignore`: imagen para Cloud Run. Al arrancar aplica
+  `alembic upgrade head`, así una BD vacía (Supabase nueva) se crea sola. Probada en local contra
+  una BD vacía: crea las tablas, registra y el admin redirige con `https://`.
+- `frontend/functions/api/[[path]].js`: Pages Function que reenvía `/api/*` a Cloud Run. La web y
+  la API comparten dominio, así que la cookie es "propia" (Safari y los bloqueadores no la tiran)
+  y no hace falta CORS ni `SameSite=None`.
+- Enlace "Admin" con `VITE_ADMIN_URL`: en producción el panel se abre directamente en Cloud Run.
+- `alembic/env.py`: el `%` de una contraseña ya no rompe la URL.
+- `.github/workflows/backup-db.yml`: copia diaria de la BD (`pg_dump` cifrado con gpg, 30 días
+  como artefacto). El plan gratuito de Supabase no da copias descargables. Copia y restauración
+  probadas en local.
+- "Salir" y "Eliminar cuenta" llevan al login (detalle en la fase 8).
+
+## 2026-10-10 · master · Fase 8: acceso por proyecto y borrar espacios/proyectos
+
+Detalle en [CHANGELOG-fase-8.md](CHANGELOG-fase-8.md). Va antes del despliegue.
+
+## 2026-10-08 · master · Fase 7: cuentas con email y contraseña, y panel de admin
+
+Detalle en [CHANGELOG-fase-7.md](CHANGELOG-fase-7.md). Va antes del despliegue.
+
+## 2026-10-07 · master · Fase 6 (parte): gráficas del panel
+
+Detalle en [CHANGELOG-fase-6.md](CHANGELOG-fase-6.md). Supabase Realtime queda para después del despliegue.
+
+## 2026-10-07 · master · Fase 5 (parte de código): eliminar la cuenta y privacidad
+
+Detalle en [CHANGELOG-fase-5.md](CHANGELOG-fase-5.md). El despliegue en sí se hará en pareja.
+
+## 2026-10-07 · master · Fase 4: panel del dueño
+
+Detalle completo, qué hay que saber y commits propuestos en [CHANGELOG-fase-4.md](CHANGELOG-fase-4.md).
+
+## 2026-10-05 · master · Fase 3: registro de tareas, cronómetro y hoja de horas
+
+Detalle completo, qué hay que saber y commits propuestos en [CHANGELOG-fase-3.md](CHANGELOG-fase-3.md).
+
 ## 2026-10-05 · master · Fase 2: catálogo (proyectos, labels y sublabels)
 
 Detalle completo, qué hay que saber y commits propuestos en [CHANGELOG-fase-2.md](CHANGELOG-fase-2.md).

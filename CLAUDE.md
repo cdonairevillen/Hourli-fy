@@ -1,7 +1,8 @@
 # Registro de horas (proxy de Clockify)
 
-Web de registro de horas (Hourli-fy). Cualquiera entra con Google y crea espacios aislados
-(un estudio, un equipo) a los que invita por link. Los miembros registran tiempo (manual o
+Web de registro de horas (Hourli-fy). Cualquiera se registra con email y contraseña (o entra con
+Google) y crea espacios aislados (un estudio, un equipo) a los que invita por link: al espacio
+entero o a un solo proyecto. Los miembros registran tiempo (manual o
 cronómetro) por proyecto, tipología y subtipología; el dueño del espacio ve totales quincenales
 de todos con filtros. Es un registro: no hay aprobaciones, cierres ni exportaciones.
 
@@ -20,7 +21,7 @@ Especificación completa: ver el doc "Registro de horas — Especificación y pl
 ```bash
 docker compose up -d db                             # Postgres local
 cd backend && uv run fastapi dev app/main.py        # API en :8000
-cd backend && uv run pytest                         # tests backend
+cd backend && uv run python -m pytest               # tests backend (pytest.exe lo bloquea Windows)
 cd backend && uv run python -m alembic upgrade head # aplicar migraciones (alembic.exe lo bloquea Windows)
 cd frontend && npm run dev                          # front en :5173
 cd frontend && npm run lint && npm run build        # comprobar front
@@ -28,15 +29,20 @@ cd frontend && npm run lint && npm run build        # comprobar front
 
 ## Modelo de datos
 
-`users`, `workspaces`, `memberships`, `invitations`, `projects`, `categories`, `subcategories`, `time_entries`.
+`users`, `workspaces`, `memberships`, `project_members`, `invitations`, `password_reset_tokens`,
+`projects`, `categories`, `subcategories`, `time_entries`.
 - Todo cuelga de un espacio (`workspace_id`) y toda consulta filtra por él tras comprobar la
   pertenencia (`MemberAccess` / `OwnerAccess` en `api/deps.py`; 404 si no eres miembro).
 - Roles por espacio: el dueño es `workspaces.owner_id`; máx. 5 espacios propios sin archivar.
-- Login con Google → JWT propio en cookie `httpOnly`. No hay contraseñas.
+- Acceso por proyecto: `memberships.all_projects` (todos) o filas en `project_members`; las reglas
+  están en `services/access.py` y un proyecto sin acceso da 404.
+- Login con email + contraseña (argon2) o con Google → JWT propio en cookie `httpOnly`.
+- Admins (`ADMIN_EMAILS` en `.env`): panel SQLAdmin en `/admin`.
 - `time_entries.end_at IS NULL` = cronómetro en marcha; índice único parcial: uno por usuario.
 - La duración no se guarda: `end_at - start_at`.
 - Fechas en UTC en BD; se muestran en Europe/Madrid.
-- Nada con registros se borra: se archiva (`archived = true`).
+- Nada con registros se borra: se archiva (`archived = true`). Espacios y proyectos sin tareas
+  sí se pueden borrar.
 - Quincenas: A = días 1–15, B = 16–fin de mes; cuenta el día de `start_at`.
 
 ## Convenciones
