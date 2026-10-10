@@ -16,6 +16,10 @@ export default defineConfig({
     proxy: {
       // 127.0.0.1 y no localhost: Node puede resolver localhost a IPv6 (::1) y uvicorn escucha en IPv4.
       '/api': 'http://127.0.0.1:8000',
+      // Panel de admin (SQLAdmin) y sus estáticos: mismo origen, así vale la misma cookie.
+      // changeOrigin: false conserva el Host (localhost:5173): SQLAdmin construye con él sus
+      // links y redirecciones, y si no, mandaría al navegador a 127.0.0.1:8000 (sin cookie).
+      '/admin': { target: 'http://127.0.0.1:8000', changeOrigin: false },
     },
   },
 })

@@ -1,5 +1,5 @@
 // Cliente mínimo de la API. Las rutas son relativas (/api/...):
-// en dev las reenvía el proxy de Vite y en producción irán a la URL del backend.
+// en dev las reenvía el proxy de Vite y en producción la Pages Function (frontend/functions).
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 // Error con el código HTTP y el mensaje (`detail`) que manda FastAPI, para mostrarlo tal cual.
@@ -38,6 +38,10 @@ export function apiPost<T>(path: string, body?: unknown): Promise<T> {
 
 export function apiPatch<T>(path: string, body: unknown): Promise<T> {
   return request<T>('PATCH', path, body)
+}
+
+export function apiPut<T>(path: string, body: unknown): Promise<T> {
+  return request<T>('PUT', path, body)
 }
 
 export function apiDelete(path: string): Promise<void> {

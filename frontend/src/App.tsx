@@ -1,10 +1,14 @@
-import { useQueryClient } from '@tanstack/react-query'
 import { Link, Route, Routes } from 'react-router'
+import { TimerBar } from '@/components/entries/TimerBar'
 import { Button } from '@/components/ui/button'
 import { apiPost } from '@/lib/api'
-import { useMe } from '@/lib/auth'
+import { goToLogin, useMe } from '@/lib/auth'
+import { AccountPage } from '@/pages/AccountPage'
 import { InvitePage } from '@/pages/InvitePage'
 import { LoginPage } from '@/pages/LoginPage'
+import { ForgotPasswordPage, ResetPasswordPage } from '@/pages/PasswordRecoveryPages'
+import { PrivacyPage } from '@/pages/PrivacyPage'
+import { ProjectSheetPage } from '@/pages/ProjectSheetPage'
 import { WorkspacePage } from '@/pages/WorkspacePage'
 import { WorkspacesPage } from '@/pages/WorkspacesPage'
 
@@ -13,6 +17,10 @@ function App() {
     <Routes>
       {/* La invitación es pública: gestiona ella misma si hay sesión o no. */}
       <Route path="/invite/:token" element={<InvitePage />} />
+      {/* Privacidad también es pública: la enlaza la pantalla de consentimiento de Google. */}
+      <Route path="/privacidad" element={<PrivacyPage />} />
+      <Route path="/recuperar" element={<ForgotPasswordPage />} />
+      <Route path="/recuperar/:token" element={<ResetPasswordPage />} />
       <Route path="*" element={<PrivateApp />} />
     </Routes>
   )
@@ -21,7 +29,6 @@ function App() {
 // Todo lo demás exige sesión: sin ella se muestra el login.
 function PrivateApp() {
   const me = useMe()
-  const queryClient = useQueryClient()
 
   if (me.isLoading) return null
   if (me.isError) {
@@ -31,9 +38,7 @@ function PrivateApp() {
 
   async function logout() {
     await apiPost('/auth/logout')
-    // Fuera toda la caché: la siguiente persona no debe ver datos de la anterior.
-    queryClient.clear()
-    queryClient.setQueryData(['me'], null)
+    goToLogin()
   }
 
   return (
@@ -43,7 +48,22 @@ function PrivateApp() {
           Hourli-fy
         </Link>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">{me.data.name}</span>
+          <TimerBar />
+          {me.data.is_admin && (
+            // El panel lo sirve la API (SQLAdmin), no React: enlace normal en otra pestaña.
+            // En producción va directo a Cloud Run (VITE_ADMIN_URL); en local, al proxy de Vite.
+            <a
+              href={import.meta.env.VITE_ADMIN_URL || '/admin/'}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm font-medium text-muted-foreground hover:underline"
+            >
+              Admin
+            </a>
+          )}
+          <Link to="/cuenta" className="text-sm text-muted-foreground hover:underline">
+            {me.data.name}
+          </Link>
           <Button variant="outline" size="sm" onClick={logout}>
             Salir
           </Button>
@@ -51,8 +71,13 @@ function PrivateApp() {
       </header>
       <Routes>
         <Route path="/" element={<WorkspacesPage />} />
-        <Route path="/w/:wid" element={<WorkspacePage tab="team" />} />
+        <Route path="/w/:wid" element={<WorkspacePage tab="projects" />} />
+        <Route path="/w/:wid/hoja" element={<WorkspacePage tab="sheet" />} />
+        <Route path="/w/:wid/panel" element={<WorkspacePage tab="panel" />} />
         <Route path="/w/:wid/catalogo" element={<WorkspacePage tab="catalog" />} />
+        <Route path="/w/:wid/equipo" element={<WorkspacePage tab="team" />} />
+        <Route path="/w/:wid/p/:pid" element={<ProjectSheetPage />} />
+        <Route path="/cuenta" element={<AccountPage />} />
         <Route path="*" element={<p>Página no encontrada.</p>} />
       </Routes>
     </div>

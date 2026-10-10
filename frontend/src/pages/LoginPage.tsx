@@ -1,4 +1,5 @@
-import { GoogleLoginButton } from '@/components/GoogleLoginButton'
+import { Link } from 'react-router'
+import { AuthPanel } from '@/components/auth/AuthPanel'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 export function LoginPage() {
@@ -7,10 +8,13 @@ export function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Hourli-fy</CardTitle>
-          <CardDescription>Registro de horas por proyecto. Entra con tu cuenta de Google.</CardDescription>
+          <CardDescription>Registro de horas por proyecto. Entra o crea tu cuenta.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <GoogleLoginButton />
+        <CardContent className="flex flex-col items-center gap-4">
+          <AuthPanel />
+          <Link to="/privacidad" className="text-xs text-muted-foreground hover:underline">
+            Privacidad
+          </Link>
         </CardContent>
       </Card>
     </main>

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router'
-import { GoogleLoginButton } from '@/components/GoogleLoginButton'
+import { AuthPanel } from '@/components/auth/AuthPanel'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { apiGet, apiPost } from '@/lib/api'
@@ -31,7 +31,9 @@ export function InvitePage() {
     mutationFn: () => apiPost<Workspace>(`/invitations/${token}/accept`),
     onSuccess: (workspace) => {
       queryClient.invalidateQueries({ queryKey: ['workspaces'] })
-      navigate(`/w/${workspace.id}`)
+      // Invitación a un proyecto: directo a su hoja; al espacio: a su lista de proyectos.
+      const projectId = preview.data?.project_id
+      navigate(projectId ? `/w/${workspace.id}/p/${projectId}` : `/w/${workspace.id}`)
     },
   })
 
@@ -48,8 +50,16 @@ export function InvitePage() {
         {preview.data && (
           <>
             <CardHeader>
-              <CardTitle>Te invitan a «{preview.data.workspace_name}»</CardTitle>
-              <CardDescription>De {preview.data.owner_name}</CardDescription>
+              <CardTitle>
+                {preview.data.project_name
+                  ? `Te invitan al proyecto «${preview.data.project_name}»`
+                  : `Te invitan a «${preview.data.workspace_name}»`}
+              </CardTitle>
+              <CardDescription>
+                {preview.data.project_name
+                  ? `De «${preview.data.workspace_name}» (${preview.data.owner_name}). Verás solo este proyecto.`
+                  : `De ${preview.data.owner_name}. Verás todos sus proyectos.`}
+              </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-3">
               {preview.data.status !== 'active' ? (
@@ -59,7 +69,7 @@ export function InvitePage() {
                   Unirme como {me.data.name}
                 </Button>
               ) : (
-                !me.isLoading && <GoogleLoginButton />
+                !me.isLoading && <AuthPanel />
               )}
               {accept.isError && <p className="text-sm text-destructive">{accept.error.message}</p>}
             </CardContent>

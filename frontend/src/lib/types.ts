@@ -5,6 +5,10 @@ export type User = {
   name: string
   email: string
   avatar_url: string | null
+  // false = cuenta solo de Google (puede ponerse contraseña en Mi cuenta).
+  has_password: boolean
+  // Su email está en ADMIN_EMAILS: ve el enlace al panel /admin.
+  is_admin: boolean
 }
 
 export type Workspace = {
@@ -23,6 +27,9 @@ export type Member = {
   avatar_url: string | null
   is_owner: boolean
   joined_at: string
+  // true = ve todos los proyectos del espacio; false = solo los de project_ids.
+  all_projects: boolean
+  project_ids: string[]
 }
 
 export type InvitationStatus = 'active' | 'expired' | 'revoked' | 'exhausted' | 'archived'
@@ -34,6 +41,9 @@ export type Invitation = {
   max_uses: number | null
   uses: number
   status: InvitationStatus
+  // null = invitación al espacio entero.
+  project_id: string | null
+  project_name: string | null
 }
 
 export type InvitationCreated = Invitation & { token: string }
@@ -43,6 +53,9 @@ export type InvitationPreview = {
   owner_name: string
   expires_at: string
   status: InvitationStatus
+  // Si invita solo a un proyecto.
+  project_id: string | null
+  project_name: string | null
 }
 
 // Catálogo. En pantalla, categories = "labels" y subcategories = "sublabels".
@@ -67,4 +80,18 @@ export type Category = {
   name: string
   archived: boolean
   subcategories: Subcategory[]
+}
+
+// Una tarea registrada. end_at null = cronómetro en marcha.
+export type TimeEntry = {
+  id: string
+  workspace_id: string
+  project_id: string
+  category_id: string
+  subcategory_id: string | null
+  title: string
+  start_at: string
+  end_at: string | null
+  source: 'manual' | 'timer'
+  duration_seconds: number | null
 }

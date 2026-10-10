@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { apiPost } from '@/lib/api'
+import { GOOGLE_CLIENT_ID } from '@/lib/auth'
 import type { User } from '@/lib/types'
 
 // Tipos mínimos de Google Identity Services (su script lo carga este componente).
@@ -17,7 +18,7 @@ declare global {
   }
 }
 
-const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''
+const CLIENT_ID = GOOGLE_CLIENT_ID
 const SCRIPT_SRC = 'https://accounts.google.com/gsi/client'
 
 // Carga el script de Google una sola vez aunque haya varios botones.
@@ -39,9 +40,7 @@ function loadGoogleScript(): Promise<void> {
 export function GoogleLoginButton() {
   const container = useRef<HTMLDivElement>(null)
   const queryClient = useQueryClient()
-  const [error, setError] = useState<string | null>(
-    CLIENT_ID ? null : 'Falta VITE_GOOGLE_CLIENT_ID en frontend/.env',
-  )
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!CLIENT_ID) return

@@ -7,12 +7,15 @@ import {
   ShowArchivedToggle,
 } from '@/components/catalog/ItemActions'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { apiGet, apiPatch, apiPost } from '@/lib/api'
+import { apiDelete, apiGet, apiPatch, apiPost } from '@/lib/api'
 import type { Project, Workspace } from '@/lib/types'
 
 // Paleta para distinguir proyectos (la API acepta cualquier #RRGGBB; esto solo facilita elegir).
-const PALETTE = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#14b8a6', '#64748b']
+// Son los 8 colores de la paleta de referencia de dataviz, en su orden: ese orden está validado
+// para que colores vecinos se distingan también con daltonismo (scripts/validate_palette.js).
+const PALETTE = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948']
 
 // Proyectos del espacio. Cada uno será la puerta a su hoja de tareas (fase 3).
 export function ProjectsCard({ workspace }: { workspace: Workspace }) {
@@ -37,6 +40,11 @@ export function ProjectsCard({ workspace }: { workspace: Workspace }) {
       apiPatch<Project>(`${base}/${id}`, body),
     onSuccess: refresh,
   })
+  // Solo se puede si no tiene horas; si las tiene, la API responde 409 y se muestra el motivo.
+  const remove = useMutation({
+    mutationFn: (id: string) => apiDelete(`${base}/${id}`),
+    onSuccess: refresh,
+  })
 
   return (
     <Card>
@@ -54,8 +62,8 @@ export function ProjectsCard({ workspace }: { workspace: Workspace }) {
           </div>
         )}
         {workspace.is_owner && <ShowArchivedToggle checked={showArchived} onChange={setShowArchived} />}
-        {(create.isError || update.isError) && (
-          <p className="text-sm text-destructive">{(create.error ?? update.error)?.message}</p>
+        {(create.isError || update.isError || remove.isError) && (
+          <p className="text-sm text-destructive">{(create.error ?? update.error ?? remove.error)?.message}</p>
         )}
 
         <div className="flex flex-col gap-2">
@@ -85,6 +93,17 @@ export function ProjectsCard({ workspace }: { workspace: Workspace }) {
                     archived={project.archived}
                     onToggle={() => update.mutate({ id: project.id, archived: !project.archived })}
                   />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs text-destructive"
+                    onClick={() =>
+                      confirm(`¿Borrar «${project.name}»? Solo se puede si no tiene horas registradas.`) &&
+                      remove.mutate(project.id)
+                    }
+                  >
+                    Borrar
+                  </Button>
                 </div>
               )}
             </div>
