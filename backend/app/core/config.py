@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     email_backend: str = "console"
     resend_api_key: str = ""
     email_from: str = "Hourli-fy <no-responder@example.com>"
+    # Carpeta con la web ya compilada (dist de Vite). Vacía en local; el Dockerfile la rellena.
+    static_dir: str = ""
 
 
 settings = Settings()

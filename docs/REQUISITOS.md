@@ -62,9 +62,8 @@ Hace falta para la web (`horas.tudominio.com`) y para que los correos no lleguen
 - Saber: el plan gratuito **pausa el proyecto tras 7 días sin uso**. Con gente registrando horas
   no pasará, pero en vacaciones podría.
 
-### 5. Cloudflare (web en Cloudflare Pages)
-- [ ] Crea una cuenta en <https://dash.cloudflare.com> (plan gratuito).
-- [ ] Ten a mano el acceso a GitHub: Cloudflare Pages se conecta al repo `Hourli-fy`.
+### 5. ~~Cloudflare~~ (ya no hace falta)
+- La web se sirve desde Cloud Run junto con la API: ver [DESPLIEGUE.md](DESPLIEGUE.md).
 
 ### 6. Pantalla de consentimiento de Google
 - [ ] Al desplegar, añadiremos la URL de producción a los *orígenes autorizados* del OAuth

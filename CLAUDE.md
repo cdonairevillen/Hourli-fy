@@ -14,7 +14,8 @@ Especificación completa: ver el doc "Registro de horas — Especificación y pl
 - **Backend** (`backend/`): FastAPI + SQLModel + Alembic, Python 3.12.
 - **Base de datos**: PostgreSQL en Supabase (en local, Postgres en Docker Compose).
 - **Tiempo real**: Supabase Realtime sobre `time_entries` (fase extra).
-- **Deploy**: backend en Google Cloud Run (Docker), frontend en Cloudflare Pages.
+- **Deploy**: un solo servicio de Google Cloud Run (`Dockerfile` de la raíz): la API sirve también
+  la web compilada. Guía en `docs/DESPLIEGUE.md`.
 
 ## Comandos
 

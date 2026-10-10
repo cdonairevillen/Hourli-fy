@@ -51,7 +51,7 @@ function PrivateApp() {
           <TimerBar />
           {me.data.is_admin && (
             // El panel lo sirve la API (SQLAdmin), no React: enlace normal en otra pestaña.
-            // En producción va directo a Cloud Run (VITE_ADMIN_URL); en local, al proxy de Vite.
+            // Mismo dominio (en local, por el proxy de Vite); VITE_ADMIN_URL solo si estuviera en otro.
             <a
               href={import.meta.env.VITE_ADMIN_URL || '/admin/'}
               target="_blank"

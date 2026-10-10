@@ -2,34 +2,38 @@
 
 Guía para publicar Hourli-fy **desde cero y solo con el navegador**: todo se hace en las webs de
 Supabase, Google Cloud (con **Cloud Shell**, una terminal en el navegador que ya trae `gcloud`,
-`git` y `python3`) y Cloudflare. No hace falta instalar nada en el ordenador del clúster.
+`git` y `python3`). No hace falta instalar nada en el ordenador del clúster.
+
+> **Cambio (10-10-2026): ya no se usa Cloudflare.** Desde España, las IPs de Cloudflare se bloquean
+> durante los partidos de LaLiga, y la web no cargaba. Ahora **la web la sirve el mismo Cloud Run
+> que la API**: una sola URL de Google para todo. Si ya habías desplegado con Cloudflare, ve
+> directo a [Pasar de Cloudflare a solo Cloud Run](#pasar-de-cloudflare-a-solo-cloud-run).
 
 Tiempo estimado: 1–1,5 h la primera vez (pasos 1–6 y 8; el 7 es opcional). Coste: 0 € con los planes gratuitos (Google pide una
 tarjeta para Cloud Run, pero con este uso no debería cobrar nada).
 
-> **Nunca subas claves al repo ni las pegues en un chat.** Van en las variables de Cloud Run y de
-> Cloudflare, y en el archivo `~/hourlify-env.yaml` de tu Cloud Shell (fuera del repo).
+> **Nunca subas claves al repo ni las pegues en un chat.** Van en las variables de Cloud Run y en
+> el archivo `~/hourlify-env.yaml` de tu Cloud Shell (fuera del repo).
 
 ---
 
 ## Cómo queda montado
 
 ```
-Navegador ──► https://hourli-fy.pages.dev          (Cloudflare Pages: la web de React)
-                 │
-                 └─ /api/*  ──► Pages Function ──► https://hourlify-api-….run.app   (Cloud Run: FastAPI)
-                                                          │
-                                                          └──► Supabase (PostgreSQL)
-
-Admin: https://hourlify-api-….run.app/admin/   (directo a Cloud Run)
+Navegador ──► https://hourlify-api-….run.app      (Cloud Run: un solo servicio)
+                 ├─ /, /w/…, /invite/…   → la web de React (ya compilada dentro de la imagen)
+                 ├─ /api/*               → FastAPI
+                 └─ /admin/              → panel de admin
+                          │
+                          └──► Supabase (PostgreSQL)
 ```
 
-- **La web y la API comparten dominio.** La Pages Function (`frontend/functions/api/[[path]].js`)
-  reenvía `/api/*` a Cloud Run, igual que el proxy de Vite en local. Así la cookie de sesión es
-  del propio dominio de la web: si la API estuviera en otro dominio, Safari y los bloqueadores la
-  tratarían como cookie de terceros y no se podría iniciar sesión.
+- **Una sola URL.** El `Dockerfile` de la raíz compila la web con Vite y la mete en la imagen de
+  la API, que la sirve (`backend/app/frontend.py`). Así la cookie de sesión es del propio dominio
+  (sin problemas de cookies de terceros en Safari), no hace falta proxy ni CORS, y todo está en
+  IPs de Google.
 - **La base de datos se crea sola.** Cada vez que arranca, la API ejecuta `alembic upgrade head`
-  (`backend/Dockerfile`). La primera vez crea todas las tablas en una base de datos vacía; las
+  (`Dockerfile`). La primera vez crea todas las tablas en una base de datos vacía; las
   siguientes no hace nada salvo que haya migraciones nuevas. **No se migra nada de la BD local**:
   producción empieza limpia.
 
@@ -41,11 +45,10 @@ Ten un bloc de notas a mano (o mejor, un gestor de contraseñas). Los irás rell
 | --- | --- | --- |
 | `DB_PASSWORD` | Paso 1 (Supabase) | `k3J9xQ2mP7…` (solo letras y números) |
 | `DATABASE_URL` | Paso 1 (Supabase) | `postgresql+psycopg://postgres.abcd…:…@aws-0-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=require` |
-| `WEB_URL` | Paso 2 (Cloudflare) | `https://hourli-fy.pages.dev` |
 | `GOOGLE_CLIENT_ID` | Ya lo tienes (`backend/.env`) | `1234-abc.apps.googleusercontent.com` |
 | `PROJECT_ID` | Paso 3 (Google Cloud) | `hourli-fy-123456` |
 | `SECRET_KEY` | Paso 3 (Cloud Shell) | `Zb8…` (43 caracteres) |
-| `API_URL` | Paso 3 (Cloud Run) | `https://hourlify-api-abc123-ew.a.run.app` |
+| `API_URL` | Paso 3 (Cloud Run) | `https://hourlify-api-1009909897559.europe-west1.run.app` (es también la URL de la web) |
 | `BACKUP_PASSPHRASE` | Paso 8 (la inventas tú) | cuatro o cinco palabras al azar |
 
 ---
@@ -92,41 +95,14 @@ Ten un bloc de notas a mano (o mejor, un gestor de contraseñas). Los irás rell
 
 ---
 
-## Paso 2 · Cloudflare Pages (la web)
+## Paso 2 · (ya no se usa)
 
-La web se publica primero (aún sin API) para saber su URL, que la API necesita en el paso 3.
-
-1. Entra en <https://dash.cloudflare.com> y regístrate (plan **Free**).
-2. Menú izquierdo **Compute (Workers) → Workers & Pages** → **Create application**. Cloudflare
-   ofrece por defecto un *Worker*: busca la pestaña o el enlace **Pages** ("Looking to deploy
-   Pages? Get started") → **Import an existing Git repository**.
-3. **Connect GitHub** → autoriza la app de Cloudflare → en *Repository access* elige *Only select
-   repositories* → **Hourli-fy** → *Install & Authorize*. Selecciona el repo → **Begin setup**.
-4. Configuración:
-
-   | Campo | Valor |
-   | --- | --- |
-   | Project name | `hourli-fy` (define la URL: `hourli-fy.pages.dev`) |
-   | Production branch | `master` |
-   | Framework preset | `None` |
-   | Build command | `npm run build` |
-   | Build output directory | `dist` |
-   | Root directory (advanced) | `frontend` |
-
-   En **Environment variables (advanced)** añade:
-
-   | Variable | Valor |
-   | --- | --- |
-   | `NODE_VERSION` | `22` |
-   | `VITE_GOOGLE_CLIENT_ID` | tu `GOOGLE_CLIENT_ID` |
-
-5. **Save and Deploy**. Tarda 1–2 minutos. Al terminar verás la URL (`https://hourli-fy.pages.dev`,
-   o con un sufijo si el nombre ya estaba cogido). Apúntala como `WEB_URL`, **sin barra final**.
-6. Si abres la web ahora verás el login, pero dará error al entrar: aún no hay API. Es normal.
+Antes aquí se publicaba la web en Cloudflare Pages. Ya no hace falta: la web va dentro de Cloud
+Run (paso 3).
 
 ---
 
-## Paso 3 · Google Cloud Run (la API)
+## Paso 3 · Google Cloud Run (la web y la API)
 
 Usa el **mismo proyecto de Google Cloud** donde creaste el Client ID de OAuth.
 
@@ -160,6 +136,12 @@ Usa el **mismo proyecto de Google Cloud** donde creaste el Client ID de OAuth.
    ```
 
 ### 3.3 Variables de la API
+La URL de Cloud Run es fija para cada proyecto y nombre de servicio:
+`https://hourlify-api-NÚMERO.europe-west1.run.app`, donde NÚMERO es el *número de proyecto*
+(página de inicio del proyecto en Google Cloud, o el número con el que empieza tu
+`GOOGLE_CLIENT_ID`). Úsala abajo como `API_URL`; si al desplegar sale otra, corrige el archivo y
+aplica con 7.3.
+
 Crea el archivo de variables **fuera del repo** (en tu carpeta personal de Cloud Shell):
 ```bash
 nano ~/hourlify-env.yaml
@@ -170,8 +152,8 @@ también):
 DATABASE_URL: "postgresql+psycopg://postgres.abcdefghijkl:TU_PASSWORD@aws-0-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=require"
 SECRET_KEY: "TU_SECRET_KEY"
 GOOGLE_CLIENT_ID: "TU_GOOGLE_CLIENT_ID"
-CORS_ORIGINS: '["https://hourli-fy.pages.dev"]'
-FRONTEND_URL: "https://hourli-fy.pages.dev"
+CORS_ORIGINS: '["https://hourlify-api-NÚMERO.europe-west1.run.app"]'
+FRONTEND_URL: "https://hourlify-api-NÚMERO.europe-west1.run.app"
 COOKIE_SECURE: "true"
 COOKIE_SAMESITE: "lax"
 ADMIN_EMAILS: '["tu-email@ejemplo.com"]'
@@ -179,9 +161,8 @@ EMAIL_BACKEND: "console"
 ```
 Guarda con `Ctrl+O`, `Enter`, y sal con `Ctrl+X`.
 
-- `CORS_ORIGINS` y `FRONTEND_URL` = tu `WEB_URL` (sin barra final).
-- `COOKIE_SAMESITE` es `lax` (no `none`) porque la web y la API comparten dominio gracias a la
-  Pages Function.
+- `CORS_ORIGINS` y `FRONTEND_URL` = tu `API_URL` (sin barra final): la web vive ahí también.
+- `COOKIE_SAMESITE` es `lax` (no `none`) porque la web y la API comparten dominio.
 - `EMAIL_BACKEND: "console"`: los emails de "recuperar contraseña" se escriben en los logs de
   Cloud Run en vez de enviarse. Para enviarlos de verdad, ver el paso 7 (opcional).
 - Este archivo se queda en Cloud Shell (que conserva tu carpeta personal). Guarda también una copia
@@ -191,7 +172,7 @@ Guarda con `Ctrl+O`, `Enter`, y sal con `Ctrl+X`.
 ```bash
 cd ~/Hourli-fy
 gcloud run deploy hourlify-api \
-  --source backend \
+  --source . \
   --region europe-west1 \
   --allow-unauthenticated \
   --env-vars-file ~/hourlify-env.yaml \
@@ -200,7 +181,8 @@ gcloud run deploy hourlify-api \
 ```
 - Si pregunta *"Deploying from source requires an Artifact Registry Docker repository… create?"*
   → `Y`.
-- Tarda 3–5 minutos: Cloud Build construye la imagen con `backend/Dockerfile` y la publica.
+- Tarda 4–6 minutos: Cloud Build construye la imagen con el `Dockerfile` de la raíz (compila la
+  web y prepara la API) y la publica. `--source .` = la raíz del repo, **no** `backend`.
 - Al terminar muestra `Service URL: https://hourlify-api-….run.app`. Apúntala como `API_URL`.
 - `--max-instances 2` limita el coste si algo se dispara. `--allow-unauthenticated` es necesario:
   la API es pública (la protege el login de la propia app).
@@ -213,24 +195,15 @@ Debe responder `{"status":"ok"}`. Para ver que se crearon las tablas:
 ```bash
 gcloud run services logs read hourlify-api --region europe-west1 --limit 50
 ```
-Deben aparecer las líneas `Running upgrade … -> e000194eb176, acceso por proyecto`. En Supabase,
+Deben aparecer las líneas `Running upgrade … -> e000194eb176, acceso por proyecto`. Abre
+`API_URL` en el navegador: debe salir el login de Hourli-fy. En Supabase,
 **Table Editor** mostrará las tablas (`users`, `workspaces`, …).
 
 ---
 
-## Paso 4 · Conectar la web con la API
+## Paso 4 · (ya no se usa)
 
-1. Cloudflare → **Workers & Pages** → `hourli-fy` → **Settings → Variables and Secrets** →
-   **Add** (entorno **Production**):
-
-   | Variable | Valor | Para qué |
-   | --- | --- | --- |
-   | `API_ORIGIN` | tu `API_URL` (sin barra final) | La usa la Pages Function para reenviar `/api` |
-   | `VITE_ADMIN_URL` | `API_URL` + `/admin/` | El enlace "Admin" de la cabecera |
-
-   Comprueba que siguen `NODE_VERSION` y `VITE_GOOGLE_CLIENT_ID`. **Save**.
-2. Las variables solo se aplican en un despliegue nuevo: **Deployments** → en el último, menú
-   **⋯ → Retry deployment**. Espera a que termine.
+Antes aquí se conectaba Cloudflare con la API. Con todo en Cloud Run no hace falta.
 
 ---
 
@@ -238,17 +211,18 @@ Deben aparecer las líneas `Running upgrade … -> e000194eb176, acceso por proy
 
 1. <https://console.cloud.google.com> → **APIs y servicios → Credenciales** → tu *ID de cliente
    de OAuth 2.0* (tipo Aplicación web).
-2. En **Orígenes de JavaScript autorizados** → *Añadir URI* → tu `WEB_URL`
-   (`https://hourli-fy.pages.dev`, sin barra final). Deja también `http://localhost:5173` para
+2. En **Orígenes de JavaScript autorizados** → *Añadir URI* → tu `API_URL`
+   (`https://hourlify-api-NÚMERO.europe-west1.run.app`, sin barra final). Deja también `http://localhost:5173` para
    seguir desarrollando. **No** hacen falta *URIs de redireccionamiento*. **Guardar**. Puede
    tardar unos minutos en aplicarse.
 3. **Antes de publicar la app**, rellena los `[PLACEHOLDERS]` de la página de privacidad
    (`frontend/src/pages/PrivacyPage.tsx`: responsable, email de contacto, fecha y región:
-   *Supabase UE (Irlanda/Fráncfort), Google Cloud europe-west1 (Bélgica), Cloudflare*). Haz
-   commit y push: Cloudflare redespliega sola la web.
+   *Supabase UE (Irlanda/Fráncfort), Google Cloud europe-west1 (Bélgica)*). Haz commit y push, y
+   redespliega como en "Después: cómo actualizar".
 4. **APIs y servicios → Pantalla de consentimiento de OAuth** (o *Google Auth Platform*):
-   - **Branding**: *Página principal de la aplicación* = `WEB_URL`; *Política de privacidad* =
-     `WEB_URL/privacidad`; *Dominios autorizados*: `pages.dev`. Guardar.
+   - **Branding**: *Página principal de la aplicación* = `API_URL`; *Política de privacidad* =
+     `API_URL/privacidad`. Si te pide un *dominio autorizado* y no acepta `run.app`, deja vacíos
+     esos enlaces: con solo email y perfil no son obligatorios para publicar. Guardar.
    - **Audience / Público**: *Estado de publicación* → **Publicar aplicación** → Confirmar. Sin
      esto, solo pueden entrar con Google los "usuarios de prueba" que añadiste.
    - Al pedir solo email y perfil, Google no exige verificación: queda "En producción" al momento.
@@ -257,7 +231,7 @@ Deben aparecer las líneas `Running upgrade … -> e000194eb176, acceso por proy
 
 ## Paso 6 · Probar en producción
 
-Abre `WEB_URL` en una ventana normal (no la de desarrollo):
+Abre `API_URL` en una ventana normal (no la de desarrollo):
 
 - [ ] **Registro** con email y contraseña → entras a "Espacios".
 - [ ] **Salir** → vuelves al login. **Entrar** de nuevo con la misma cuenta.
@@ -285,10 +259,11 @@ saltes**.
 Hace falta un **dominio** (unos 10–15 €/año, o el de la empresa si te dan acceso a su DNS).
 
 ### 7.1 Dominio para la web
-1. Cloudflare → `hourli-fy` → **Custom domains → Set up a custom domain** → `horas.tudominio.com`.
-   Sigue las instrucciones (si el DNS está en Cloudflare es automático; si no, te da un registro
-   `CNAME` que añadir en el DNS del dominio).
-2. Con el nuevo dominio cambia **en todos estos sitios** `WEB_URL` por `https://horas.tudominio.com`:
+1. Google Cloud → **Cloud Run → Gestionar dominios personalizados → Añadir asignación** →
+   servicio `hourlify-api` → `horas.tudominio.com`. Google te da los registros DNS que añadir en
+   el DNS del dominio (y verificar el dominio en Search Console si lo pide). El certificado HTTPS
+   tarda de 15 min a unas horas.
+2. Con el nuevo dominio cambia **en todos estos sitios** `API_URL` por `https://horas.tudominio.com`:
    - `~/hourlify-env.yaml` (`CORS_ORIGINS` y `FRONTEND_URL`) y aplica (ver 7.3).
    - Google → Orígenes de JavaScript autorizados (añádelo) y Branding (página principal,
      privacidad y dominio autorizado).
@@ -383,18 +358,44 @@ Solo si se pierden datos. Se hace desde Cloud Shell (tiene `gpg` y Docker):
 
 ## Después: cómo actualizar
 
-- **Web**: cada `git push` a `master` redespliega sola en Cloudflare (1–2 min). Puedes verlo en
-  *Deployments*.
-- **API**: en Cloud Shell:
+- **Web y API van juntas**: en Cloud Shell:
   ```bash
   cd ~/Hourli-fy && git pull
-  gcloud run deploy hourlify-api --source backend --region europe-west1 \
+  gcloud run deploy hourlify-api --source . --region europe-west1 \
     --allow-unauthenticated --env-vars-file ~/hourlify-env.yaml --memory 512Mi --max-instances 2
   ```
   Si hay migraciones nuevas, se aplican solas al arrancar. Si el token de GitHub caducó,
   `git pull` lo pedirá otra vez: genera uno nuevo como en el paso 3.2.
-- **Primero la API, luego la web** si un cambio toca a las dos (la web nueva puede usar rutas que
-  la API vieja no tiene).
+
+---
+
+## Pasar de Cloudflare a solo Cloud Run
+
+Si ya tenías la API en Cloud Run y la web en Cloudflare (el primer despliegue), son 3 pasos:
+
+1. **Cloud Shell**: baja el código nuevo y corrige las URLs del archivo de variables.
+   ```bash
+   cd ~/Hourli-fy && git pull
+   nano ~/hourlify-env.yaml
+   ```
+   Cambia `CORS_ORIGINS` y `FRONTEND_URL` a tu `API_URL` (sin barra final), p. ej.:
+   ```yaml
+   CORS_ORIGINS: '["https://hourlify-api-1009909897559.europe-west1.run.app"]'
+   FRONTEND_URL: "https://hourlify-api-1009909897559.europe-west1.run.app"
+   ```
+   Guarda (`Ctrl+O`, `Enter`, `Ctrl+X`).
+2. **Despliega desde la raíz** (ojo: `--source .`, ya no `backend`):
+   ```bash
+   gcloud run deploy hourlify-api --source . --region europe-west1 \
+     --allow-unauthenticated --env-vars-file ~/hourlify-env.yaml --memory 512Mi --max-instances 2
+   ```
+   Al terminar, abre `API_URL` en el navegador: debe salir el login. La URL no cambia.
+3. **Google** → Credenciales → tu ID de cliente → **Orígenes de JavaScript autorizados** → añade
+   `API_URL`. Si ya publicaste la app con enlaces a `pages.dev` en *Branding*, cámbialos a
+   `API_URL` (o déjalos vacíos si no acepta el dominio).
+
+Después prueba el paso 6 entero. El proyecto de Cloudflare puedes borrarlo
+(*Workers & Pages → hourli-fy → Settings → Delete*) o dejarlo: ya no se usa.
 
 ---
 
@@ -406,22 +407,21 @@ Solo si se pierden datos. Se hace desde Cloud Shell (tiene `gpg` y Docker):
 | `/api/health` responde 503 o la API no arranca | La BD no conecta | Logs (`gcloud run services logs read …`). Revisa `DATABASE_URL`: *Session pooler*, `postgresql+psycopg://`, contraseña sin símbolos, `?sslmode=require` |
 | Logs: `password authentication failed` | Contraseña mal | Supabase → **Project Settings → Database → Reset database password** (solo letras y números), actualiza el yaml y 7.3 |
 | Logs: `Network is unreachable` / IPv6 | Usaste la conexión directa | Cambia a la URL del **Session pooler** |
-| La web dice "No se puede contactar con la API" | `API_ORIGIN` mal o sin redesplegar la web | Paso 4 (sin barra final) y *Retry deployment* |
-| Login con email OK pero al recargar vuelves al login | Cookie no guardada | `COOKIE_SECURE: "true"` y `COOKIE_SAMESITE: "lax"`; entra siempre por `WEB_URL`, no por la URL de Cloud Run |
+| `API_URL` muestra `{"detail":"Not Found"}` en vez del login | Desplegaste con `--source backend` (imagen vieja, sin web) | Vuelve a desplegar con `--source .` desde la raíz del repo |
+| Login con email OK pero al recargar vuelves al login | Cookie no guardada | `COOKIE_SECURE: "true"` y `COOKIE_SAMESITE: "lax"`; entra siempre por `API_URL` |
 | Botón de Google: "origin is not allowed" / error 400 | Falta el origen en Google | Paso 5.2 (exacto, `https://`, sin barra). Espera 5 min |
 | Google: "Acceso bloqueado: app en pruebas" | App sin publicar | Paso 5.4 |
 | La API devuelve 503 en `/api/auth/google` | Falta `GOOGLE_CLIENT_ID` en la API | Añádelo al yaml y 7.3 |
 | Admin: "acceso denegado" | Email no está en `ADMIN_EMAILS` o la cuenta no tiene contraseña | Revisa el yaml (lista JSON con comillas simples fuera) y pon contraseña en *Mi cuenta* |
-| Cloudflare: el build falla con un error de Node | Versión de Node | `NODE_VERSION` = `22` en las variables |
+| El build falla en `npm ci` o `npm run build` | Error del front | Mira el log de Cloud Build (enlace que da `gcloud`); en local, `cd frontend && npm run build` |
 | Supabase: el proyecto está en pausa | 7 días sin uso | Panel de Supabase → *Restore project* |
 
 ---
 
 ## Saber
 
-- **Coste y límites gratuitos**: Supabase Free (500 MB de BD), Cloud Run (2 millones de
-  peticiones/mes gratis), Cloudflare Pages (despliegues ilimitados; las Functions, 100.000
-  peticiones/día). De sobra para un equipo.
+- **Coste y límites gratuitos**: Supabase Free (500 MB de BD) y Cloud Run (2 millones de
+  peticiones/mes gratis). De sobra para un equipo.
 - **Arranque en frío**: con `min-instances` a 0 (por defecto), la primera petición tras un rato sin
   uso tarda 3–5 s. Es gratis así; si molesta, `--min-instances 1` lo evita, pero cuesta unos
   euros al mes.

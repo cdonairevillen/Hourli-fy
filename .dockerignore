@@ -1,0 +1,17 @@
+# Lo que no entra en la imagen (ni se sube a Cloud Build).
+.git
+.github
+**/.env
+**/.env.*
+.cloud_credentials
+hourli-fy
+docs
+specs
+**/node_modules
+**/dist
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+backend/tests
+backend/scripts

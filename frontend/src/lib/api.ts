@@ -1,5 +1,5 @@
 // Cliente mínimo de la API. Las rutas son relativas (/api/...):
-// en dev las reenvía el proxy de Vite y en producción la Pages Function (frontend/functions).
+// en dev las reenvía el proxy de Vite y en producción la API sirve también la web (mismo origen).
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 // Error con el código HTTP y el mensaje (`detail`) que manda FastAPI, para mostrarlo tal cual.

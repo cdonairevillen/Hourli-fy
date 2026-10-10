@@ -3,6 +3,21 @@
 Qué se añade o cambia en cada paso, y por qué. Lo más reciente arriba.
 Formato: `## AAAA-MM-DD · rama · resumen`, con una sección por commit.
 
+## 2026-10-10 · master · Despliegue: la web pasa a Cloud Run (sin Cloudflare)
+
+- **Motivo**: desde España, las IPs de Cloudflare de `hourli-fy.pages.dev` estaban bloqueadas (los
+  bloqueos de LaLiga en partido): la web no cargaba, aunque la API sí respondía.
+- **Ahora la API sirve también la web** (`backend/app/frontend.py`, activo solo con `STATIC_DIR`):
+  `/assets` y los archivos de `public/` tal cual, y cualquier otra ruta que no sea `/api` ni
+  `/admin` devuelve `index.html` (React Router). Una ruta de la API inexistente sigue siendo un 404
+  JSON. Con test (`tests/test_frontend.py`, 4).
+- `Dockerfile` en la raíz (antes `backend/Dockerfile`): compila la web con Node 22 y la mete en la
+  imagen de la API. Se despliega con `gcloud run deploy --source .`. `.dockerignore` y
+  `.gcloudignore` dejan fuera `.env`, `.git`, `node_modules`, etc.
+- Fuera la Pages Function de Cloudflare (`frontend/functions/`).
+- Probado en local con la imagen completa: login, rutas de React, `/api`, `/admin` y registro.
+- `docs/DESPLIEGUE.md` actualizado, con una sección para pasar del despliegue con Cloudflare.
+
 ## 2026-10-10 · master · Preparar el despliegue y copias de seguridad
 
 Guía paso a paso en [DESPLIEGUE.md](DESPLIEGUE.md), pensada para hacerlo solo y desde el navegador.

@@ -143,10 +143,10 @@ flowchart LR
   cookie `httpOnly`, que JavaScript no puede leer.
 - **Emails** (recuperar contraseña): en local se escriben en la consola de la API; en producción
   salen por [Resend](https://resend.com).
-- **Despliegue** (fase 5): backend en Google Cloud Run (`backend/Dockerfile`, aplica las
-  migraciones al arrancar), frontend en Cloudflare Pages (una Pages Function reenvía `/api` a Cloud
-  Run, así la cookie es del mismo dominio), base de datos en Supabase y copia de seguridad diaria
-  con GitHub Actions. Guía paso a paso en [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
+- **Despliegue** (fase 5): un solo servicio de Google Cloud Run (`Dockerfile` de la raíz): compila
+  la web y la API la sirve junto a `/api` y `/admin`, y aplica las migraciones al arrancar. Base de
+  datos en Supabase y copia de seguridad diaria con GitHub Actions. Guía paso a paso en
+  [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
 
 ## Backend: módulo a módulo
 
@@ -341,7 +341,7 @@ npm run build                                # incluye la comprobación de tipos
 | 2. Catálogo | Proyectos, labels y sublabels | Hecha |
 | 3. Registro | Hoja de cada proyecto, cronómetro, registro manual, Mi hoja | Hecha |
 | 4. Panel | Totales del equipo con filtros y lista de tareas | Hecha |
-| 5. Deploy | Eliminar cuenta y página de privacidad: **hechas**. Docker, Cloud Run, Cloudflare Pages, Supabase y pantalla de consentimiento de Google: **pendiente, se hará en pareja** | En parte |
+| 5. Deploy | Eliminar cuenta y página de privacidad: **hechas**. Docker, Cloud Run (web + API), Supabase, copias y pantalla de consentimiento de Google: **en curso** | En parte |
 | 6. Extra | Gráficas del panel: **hechas**. Actividad en vivo con Supabase Realtime: **pendiente** (necesita Supabase, tras el despliegue) | En parte |
 | 7. Cuentas y admin | Email + contraseña con cualquier dominio, recuperar contraseña por email, panel `/admin` | Hecha (va antes del despliegue) |
 | 8. Acceso por proyecto | Invitar a un solo proyecto, permisos por miembro, borrar espacios y proyectos sin horas | Hecha (va antes del despliegue) |

@@ -50,11 +50,9 @@ src/
 
 - **Proxy de Vite** (`vite.config.ts`): en desarrollo, `/api/*` se reenvía a `http://127.0.0.1:8000`.
   El navegador ve un único origen, así que no hace falta CORS y la cookie de login (Fase 1) funciona sin más.
-- **`VITE_API_URL`**: vacío en local y en producción. En Cloudflare Pages, `/api/*` lo reenvía a
-  Cloud Run la Pages Function `functions/api/[[path]].js` (variable `API_ORIGIN`), igual que el
-  proxy de Vite en local: un único origen, sin CORS y con la cookie del propio dominio.
-- **`VITE_ADMIN_URL`**: vacío en local (`/admin/` por el proxy). En producción, la URL de Cloud Run
-  con `/admin/`: el panel se abre directamente en la API.
+- **`VITE_API_URL`**: vacío en local y en producción. En producción la web y la API van en el
+  mismo servicio de Cloud Run (la API sirve el `dist`), así que `/api` es del mismo origen.
+- **`VITE_ADMIN_URL`**: vacío normalmente (`/admin/` del mismo dominio).
 - **`VITE_GOOGLE_CLIENT_ID`** (`frontend/.env`, opcional): el mismo Client ID que `GOOGLE_CLIENT_ID`
   del backend. Si falta, el botón de Google no aparece y se entra con email y contraseña.
 - **Proxy de `/admin`** con `changeOrigin: false`: SQLAdmin construye sus links con la cabecera
