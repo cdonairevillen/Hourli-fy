@@ -14,10 +14,14 @@ from sqlalchemy.engine import Engine, make_url
 from sqlmodel import Session, SQLModel
 
 import app.models  # noqa: F401  (registra las tablas en SQLModel.metadata)
+from app.admin import admin_session_maker
 from app.core.config import settings
 from app.core.google import GoogleIdentity, GoogleLoginError, get_google_verifier
+from app.db import engine as app_engine
 from app.db import get_session
 from app.main import app
+from app.services.email import EmailMessage, get_email_sender
+from app.services.rate_limit import LOGIN_LIMIT, RESET_LIMIT
 
 TEST_DATABASE_URL = make_url(settings.database_url).set(
     database=f"{make_url(settings.database_url).database}_test"
@@ -47,6 +51,9 @@ def engine() -> Iterator[Engine]:
     admin.dispose()
 
     test_engine = create_engine(TEST_DATABASE_URL)
+    with test_engine.begin() as connection:
+        # La necesita la restricción de solapes (en la BD real la crea la migración).
+        connection.execute(text("CREATE EXTENSION IF NOT EXISTS btree_gist"))
     SQLModel.metadata.drop_all(test_engine)
     SQLModel.metadata.create_all(test_engine)
     yield test_engine
@@ -66,8 +73,14 @@ def db(engine: Engine) -> Iterator[Session]:
 
 
 @pytest.fixture
+def outbox() -> list[EmailMessage]:
+    """Emails "enviados" durante el test (en vez de salir por consola o por Resend)."""
+    return []
+
+
+@pytest.fixture
 def make_client(
-    db: Session, monkeypatch: pytest.MonkeyPatch
+    db: Session, outbox: list[EmailMessage], monkeypatch: pytest.MonkeyPatch
 ) -> Iterator[Callable[..., TestClient]]:
     """Fábrica de clientes. `make_client("ana")` devuelve uno con la sesión de Ana iniciada;
     sin argumento, uno anónimo. Cada cliente guarda sus propias cookies."""
@@ -76,6 +89,12 @@ def make_client(
     monkeypatch.setattr(settings, "secret_key", "clave-de-tests-con-al-menos-32-bytes")
     app.dependency_overrides[get_session] = lambda: db
     app.dependency_overrides[get_google_verifier] = lambda: fake_google_verifier
+    app.dependency_overrides[get_email_sender] = lambda: outbox.append
+    # El panel /admin abre sus propias sesiones: que usen también la transacción del test.
+    admin_session_maker.configure(bind=db.bind, join_transaction_mode="create_savepoint")
+    # Cada test empieza con los contadores de intentos a cero.
+    LOGIN_LIMIT.clear()
+    RESET_LIMIT.clear()
 
     def build(name: str | None = None) -> TestClient:
         client = TestClient(app)
@@ -87,3 +106,4 @@ def make_client(
 
     yield build
     app.dependency_overrides.clear()
+    admin_session_maker.configure(bind=app_engine, join_transaction_mode="conservative_savepoint")

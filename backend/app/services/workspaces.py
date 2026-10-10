@@ -5,7 +5,7 @@ import uuid
 from fastapi import HTTPException, status
 from sqlmodel import Session, func, select
 
-from app.models import Invitation, User, Workspace
+from app.models import Invitation, Project, User, Workspace
 from app.models.common import utc_now
 from app.schemas import InvitationRead, InvitationStatus, WorkspaceRead
 
@@ -43,9 +43,11 @@ def workspace_read(workspace: Workspace, user_id: uuid.UUID) -> WorkspaceRead:
     )
 
 
-def invitation_status(invitation: Invitation, workspace: Workspace) -> InvitationStatus:
-    """Estado de un link: solo "active" permite unirse."""
-    if workspace.archived:
+def invitation_status(
+    invitation: Invitation, workspace: Workspace, project: Project | None = None
+) -> InvitationStatus:
+    """Estado de un link: solo "active" permite unirse (`project`: si el link es a un proyecto)."""
+    if workspace.archived or (project is not None and project.archived):
         return "archived"
     if invitation.revoked_at is not None:
         return "revoked"
@@ -56,12 +58,16 @@ def invitation_status(invitation: Invitation, workspace: Workspace) -> Invitatio
     return "active"
 
 
-def invitation_read(invitation: Invitation, workspace: Workspace) -> InvitationRead:
+def invitation_read(
+    invitation: Invitation, workspace: Workspace, project: Project | None = None
+) -> InvitationRead:
     return InvitationRead(
         id=invitation.id,
         created_at=invitation.created_at,
         expires_at=invitation.expires_at,
         max_uses=invitation.max_uses,
         uses=invitation.uses,
-        status=invitation_status(invitation, workspace),
+        status=invitation_status(invitation, workspace, project),
+        project_id=invitation.project_id,
+        project_name=project.name if project is not None else None,
     )

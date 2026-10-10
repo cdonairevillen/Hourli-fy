@@ -7,6 +7,7 @@ from typing import Annotated
 from fastapi import Cookie, Depends, HTTPException, status
 from sqlmodel import Session, select
 
+from app.core.config import settings
 from app.core.security import SESSION_COOKIE, read_session_token
 from app.db import get_session
 from app.models import Membership, User, Workspace
@@ -22,12 +23,19 @@ def get_current_user(
     # No se llama `token`: chocaría con el parámetro de ruta de /invitations/{token}.
     user_id = read_session_token(session_token) if session_token else None
     user = session.get(User, user_id) if user_id else None
-    if user is None:
+    # Una cookie aún válida de una cuenta ya eliminada tampoco sirve.
+    if user is None or user.deleted_at is not None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "No has iniciado sesión")
     return user
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+def is_admin(user: User) -> bool:
+    """Su email está en ADMIN_EMAILS (.env): puede entrar al panel /admin."""
+    admins = {email.strip().lower() for email in settings.admin_emails}
+    return user.deleted_at is None and user.email.lower() in admins
 
 
 @dataclass

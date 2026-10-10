@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 
+from sqlalchemy import true
 from sqlmodel import Field, SQLModel
 
 from app.models.common import TZDateTime, utc_now
@@ -28,3 +29,6 @@ class Membership(SQLModel, table=True):
     joined_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
     # null = miembro activo. Al expulsar o salir se rellena (no se borra: sus horas cuentan).
     removed_at: datetime | None = Field(default=None, sa_type=TZDateTime)
+    # True = ve todos los proyectos del espacio, también los que se creen después (invitación al
+    # espacio, y siempre el dueño). False = solo los de project_members (invitación a un proyecto).
+    all_projects: bool = Field(default=True, sa_column_kwargs={"server_default": true()})

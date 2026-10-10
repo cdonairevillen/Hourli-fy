@@ -7,10 +7,10 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, SQLModel, select
+from sqlmodel import Session, SQLModel, delete, select
 
 from app.api.deps import MemberAccess, OwnerAccess, SessionDep, WorkspaceAccess
-from app.models import Category, Project, Subcategory
+from app.models import Category, Invitation, Project, ProjectMember, Subcategory, TimeEntry
 from app.schemas import (
     CatalogItemCreate,
     CatalogItemUpdate,
@@ -20,6 +20,7 @@ from app.schemas import (
     ProjectUpdate,
     SubcategoryRead,
 )
+from app.services.access import accessible_project_ids
 
 router = APIRouter(prefix="/workspaces/{wid}", tags=["catalog"])
 
@@ -103,8 +104,14 @@ DUPLICATE_SUBCATEGORY = (
 def list_projects(
     session: SessionDep, access: MemberAccess, include_archived: bool = False
 ) -> list[ProjectRead]:
-    """Proyectos del espacio. Por defecto solo los activos (los que salen en la app)."""
+    """Proyectos del espacio que puedo ver (todos, o solo aquellos a los que me invitaron).
+
+    Por defecto solo los activos (los que salen en la app).
+    """
     query = select(Project).where(Project.workspace_id == access.workspace.id)
+    allowed = accessible_project_ids(session, access.workspace, access.membership)
+    if allowed is not None:
+        query = query.where(Project.id.in_(allowed))
     if not include_archived:
         query = query.where(Project.archived.is_(False))
     projects = session.exec(query.order_by(Project.created_at)).all()
@@ -130,6 +137,24 @@ def update_project(
         setattr(project, field, value)
     save_or_conflict(session, project, DUPLICATE_PROJECT)
     return project_read(project)
+
+
+@router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project(project_id: uuid.UUID, session: SessionDep, access: OwnerAccess) -> None:
+    """Borra el proyecto de verdad solo si no tiene ninguna tarea; si tiene, hay que archivarlo."""
+    ensure_writable(access)
+    project = get_project(session, access, project_id)
+    has_entries = session.exec(
+        select(TimeEntry.id).where(TimeEntry.project_id == project.id).limit(1)
+    ).first()
+    if has_entries is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Tiene horas registradas: no se puede borrar, archívalo"
+        )
+    session.exec(delete(ProjectMember).where(ProjectMember.project_id == project.id))
+    session.exec(delete(Invitation).where(Invitation.project_id == project.id))
+    session.delete(project)
+    session.commit()
 
 
 # --- Tipologías ("labels") y subtipologías ("sublabels") ---

@@ -12,7 +12,8 @@ from app.core.config import settings
 config = context.config
 
 # La URL sale de settings (.env), no de alembic.ini, para no duplicar secretos.
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# El "%" se dobla porque alembic.ini usa interpolación: una contraseña con "%" rompería la URL.
+config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

@@ -7,7 +7,9 @@ from app.models.common import TZDateTime, utc_now
 
 
 class Invitation(SQLModel, table=True):
-    """Link de invitación a un espacio. Solo se guarda el hash del token, nunca el token."""
+    """Link de invitación a un espacio, o solo a uno de sus proyectos (`project_id`).
+
+    Solo se guarda el hash del token, nunca el token."""
 
     __tablename__ = "invitations"
 
@@ -21,3 +23,5 @@ class Invitation(SQLModel, table=True):
     uses: int = 0
     revoked_at: datetime | None = Field(default=None, sa_type=TZDateTime)
     created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    # null = invita al espacio entero (todos los proyectos); con valor = solo a ese proyecto.
+    project_id: uuid.UUID | None = Field(default=None, foreign_key="projects.id")

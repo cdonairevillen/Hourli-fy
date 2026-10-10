@@ -2,21 +2,33 @@ import uuid
 from datetime import timedelta
 
 from fastapi import APIRouter, HTTPException, status
-from sqlmodel import select
+from sqlmodel import Session, delete, select
 
 from app.api.deps import CurrentUser, MemberAccess, OwnerAccess, SessionDep
 from app.core.security import hash_invitation_token, new_invitation_token
-from app.models import Invitation, Membership, User, Workspace
+from app.models import (
+    Category,
+    Invitation,
+    Membership,
+    Project,
+    ProjectMember,
+    Subcategory,
+    TimeEntry,
+    User,
+    Workspace,
+)
 from app.models.common import utc_now
 from app.schemas import (
     InvitationCreate,
     InvitationCreated,
     InvitationRead,
+    MemberAccessUpdate,
     MemberRead,
     WorkspaceCreate,
     WorkspaceRead,
     WorkspaceUpdate,
 )
+from app.services.access import grant_project, revoke_projects
 from app.services.workspaces import (
     INVITATION_DAYS,
     ensure_can_own_another,
@@ -79,6 +91,12 @@ def update_workspace(
     if not archived and (new_owner_id != workspace.owner_id or workspace.archived):
         ensure_can_own_another(session, new_owner_id)
 
+    if new_owner_id != workspace.owner_id:
+        # El dueño ve siempre todos los proyectos, aunque entrara invitado a uno solo.
+        new_owner_membership = session.get_one(Membership, (workspace.id, new_owner_id))
+        new_owner_membership.all_projects = True
+        session.add(new_owner_membership)
+
     if body.name is not None:
         workspace.name = body.name.strip()
     workspace.archived = archived
@@ -98,6 +116,7 @@ def list_members(session: SessionDep, access: MemberAccess) -> list[MemberRead]:
         .where(Membership.workspace_id == access.workspace.id, Membership.removed_at.is_(None))
         .order_by(Membership.joined_at)
     ).all()
+    granted = project_ids_by_user(session, access.workspace.id)
     members = [
         MemberRead(
             user_id=user.id,
@@ -106,10 +125,56 @@ def list_members(session: SessionDep, access: MemberAccess) -> list[MemberRead]:
             avatar_url=user.avatar_url,
             is_owner=user.id == access.workspace.owner_id,
             joined_at=membership.joined_at,
+            all_projects=user.id == access.workspace.owner_id or membership.all_projects,
+            project_ids=sorted(granted.get(user.id, []), key=str),
         )
         for membership, user in rows
     ]
     return sorted(members, key=lambda member: not member.is_owner)
+
+
+def project_ids_by_user(session: Session, workspace_id: uuid.UUID) -> dict:
+    """Accesos activos a proyectos del espacio, agrupados por usuario (una consulta para todos)."""
+    rows = session.exec(
+        select(ProjectMember.user_id, ProjectMember.project_id)
+        .join(Project, Project.id == ProjectMember.project_id)
+        .where(Project.workspace_id == workspace_id, ProjectMember.removed_at.is_(None))
+    ).all()
+    granted: dict[uuid.UUID, list[uuid.UUID]] = {}
+    for user_id, project_id in rows:
+        granted.setdefault(user_id, []).append(project_id)
+    return granted
+
+
+@router.put("/{wid}/members/{uid}/access", status_code=status.HTTP_204_NO_CONTENT)
+def update_member_access(
+    uid: uuid.UUID, body: MemberAccessUpdate, session: SessionDep, access: OwnerAccess
+) -> None:
+    """El dueño decide qué ve un miembro: todos los proyectos o solo los de la lista."""
+    if uid == access.workspace.owner_id:
+        raise HTTPException(status.HTTP_409_CONFLICT, "El dueño ve siempre todos los proyectos")
+    membership = session.get(Membership, (access.workspace.id, uid))
+    if membership is None or membership.removed_at is not None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Miembro no encontrado")
+    wanted = set() if body.all_projects else set(body.project_ids)
+    in_workspace = set(
+        session.exec(
+            select(Project.id).where(
+                Project.workspace_id == access.workspace.id, Project.id.in_(wanted)
+            )
+        ).all()
+    )
+    if wanted - in_workspace:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, "Algún proyecto no es de este espacio"
+        )
+    membership.all_projects = body.all_projects
+    session.add(membership)
+    # Con "todos" la lista sobra: se vacía para que no reaparezca si luego se limita.
+    revoke_projects(session, access.workspace.id, uid, keep=wanted)
+    for project_id in wanted:
+        grant_project(session, project_id, uid)
+    session.commit()
 
 
 @router.delete("/{wid}/members/{uid}", status_code=status.HTTP_204_NO_CONTENT)
@@ -141,6 +206,8 @@ def remove_member(uid: uuid.UUID, session: SessionDep, access: MemberAccess) -> 
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Miembro no encontrado")
     membership.removed_at = utc_now()
     session.add(membership)
+    # Si vuelve con otro link, solo recupera lo que diga ese link.
+    revoke_projects(session, access.workspace.id, membership.user_id)
     session.commit()
 
 
@@ -152,16 +219,37 @@ def list_invitations(session: SessionDep, access: OwnerAccess) -> list[Invitatio
         .where(Invitation.workspace_id == access.workspace.id)
         .order_by(Invitation.created_at.desc())
     ).all()
-    return [invitation_read(invitation, access.workspace) for invitation in invitations]
+    projects = {
+        project.id: project
+        for project in session.exec(
+            select(Project).where(Project.workspace_id == access.workspace.id)
+        ).all()
+    }
+    return [
+        invitation_read(invitation, access.workspace, projects.get(invitation.project_id))
+        for invitation in invitations
+    ]
 
 
 @router.post("/{wid}/invitations", status_code=status.HTTP_201_CREATED)
 def create_invitation(
     body: InvitationCreate, session: SessionDep, access: OwnerAccess
 ) -> InvitationCreated:
-    """Crea un link que caduca a los 10 días. El token solo se ve en esta respuesta."""
+    """Crea un link que caduca a los 10 días, al espacio entero o solo a un proyecto.
+
+    El token solo se ve en esta respuesta.
+    """
     if access.workspace.archived:
         raise HTTPException(status.HTTP_409_CONFLICT, "El espacio está archivado")
+    project = None
+    if body.project_id is not None:
+        project = session.get(Project, body.project_id)
+        if project is None or project.workspace_id != access.workspace.id:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT, "El proyecto no es de este espacio"
+            )
+        if project.archived:
+            raise HTTPException(status.HTTP_409_CONFLICT, "El proyecto está archivado")
     token = new_invitation_token()
     invitation = Invitation(
         workspace_id=access.workspace.id,
@@ -169,11 +257,12 @@ def create_invitation(
         created_by=access.user.id,
         expires_at=utc_now() + timedelta(days=INVITATION_DAYS),
         max_uses=body.max_uses,
+        project_id=body.project_id,
     )
     session.add(invitation)
     session.commit()
     session.refresh(invitation)
-    read = invitation_read(invitation, access.workspace)
+    read = invitation_read(invitation, access.workspace, project)
     return InvitationCreated(**read.model_dump(), token=token)
 
 
@@ -187,3 +276,30 @@ def revoke_invitation(invitation_id: uuid.UUID, session: SessionDep, access: Own
         invitation.revoked_at = utc_now()
         session.add(invitation)
         session.commit()
+
+
+@router.delete("/{wid}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_workspace(session: SessionDep, access: OwnerAccess) -> None:
+    """Borra el espacio de verdad, con todo lo suyo, solo si no tiene ninguna tarea registrada.
+
+    Con horas no se borra (son datos de otras personas): se archiva.
+    """
+    workspace = access.workspace
+    has_entries = session.exec(
+        select(TimeEntry.id).where(TimeEntry.workspace_id == workspace.id).limit(1)
+    ).first()
+    if has_entries is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Tiene horas registradas: no se puede borrar, archívalo"
+        )
+    project_ids = select(Project.id).where(Project.workspace_id == workspace.id)
+    category_ids = select(Category.id).where(Category.workspace_id == workspace.id)
+    # En orden: primero lo que apunta a otras tablas (claves foráneas), al final el espacio.
+    session.exec(delete(Invitation).where(Invitation.workspace_id == workspace.id))
+    session.exec(delete(ProjectMember).where(ProjectMember.project_id.in_(project_ids)))
+    session.exec(delete(Subcategory).where(Subcategory.category_id.in_(category_ids)))
+    session.exec(delete(Category).where(Category.workspace_id == workspace.id))
+    session.exec(delete(Project).where(Project.workspace_id == workspace.id))
+    session.exec(delete(Membership).where(Membership.workspace_id == workspace.id))
+    session.delete(workspace)
+    session.commit()
