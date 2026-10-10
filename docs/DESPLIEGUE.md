@@ -324,6 +324,10 @@ Gratis: dura menos de 1 minuto al día (el plan gratuito de GitHub da 2.000 minu
 copia ocupa poco.
 
 ### 8.1 Activarlo (una vez)
+0. **Rama por defecto = `master`.** GitHub solo ejecuta los workflows programados (y solo muestra
+   el botón *Run workflow*) desde la rama por defecto, y en el repo sigue siendo `main` (la del
+   commit inicial). GitHub → repo → **Settings → General → Default branch** → icono ⇄ → `master`
+   → *Update* → confirmar. La rama `main` vieja puedes dejarla o borrarla; no se usa.
 1. Prepara la URL de conexión **para pg_dump**: es tu `DATABASE_URL` **sin** `+psycopg`:
    ```
    postgresql://postgres.abcdefghijkl:TU_PASSWORD@aws-0-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=require
