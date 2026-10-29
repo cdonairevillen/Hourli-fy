@@ -1,0 +1,42 @@
+# Copia de seguridad diaria de la base de datos de producción (Supabase).
+# Guarda un pg_dump cifrado como artefacto del workflow durante 30 días.
+# Cómo restaurar: docs/DESPLIEGUE.md, paso 8.
+name: Copia de seguridad de la BD
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # todos los días a las 03:00 UTC
+  workflow_dispatch: # y a mano: Actions → "Copia de seguridad de la BD" → Run workflow
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Volcar y cifrar la base de datos
+        env:
+          # Secretos del repo (Settings → Secrets and variables → Actions).
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          name="hourlify-$(date -u +%Y-%m-%d-%H%M).dump"
+          # pg_dump 18 en Docker: sirve para servidores 15, 17 y 18 (Supabase usa una de ellas).
+          # Solo el esquema public: nuestras tablas y alembic_version, sin lo interno de Supabase.
+          docker run --rm postgres:18 pg_dump --format=custom --no-owner --no-privileges \
+            --schema=public "$SUPABASE_DB_URL" > "$name"
+          # Cifrado: el artefacto lo puede descargar cualquiera con acceso al repo, y lleva emails
+          # y hashes de contraseñas.
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$BACKUP_PASSPHRASE" \
+            --symmetric --cipher-algo AES256 -o "$name.gpg" "$name"
+          rm "$name"
+          ls -la "$name.gpg"
+          echo "BACKUP_FILE=$name.gpg" >> "$GITHUB_ENV"
+
+      - name: Guardar la copia
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BACKUP_FILE }}
+          path: ${{ env.BACKUP_FILE }}
+          retention-days: 30
+          if-no-files-found: error

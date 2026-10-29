@@ -1,0 +1,2657 @@
+openapi: 3.1.0
+info:
+  title: Registro de horas
+  version: 0.1.0
+paths:
+  /api/health:
+    get:
+      tags:
+      - health
+      summary: Health
+      description: Comprueba que la API responde (lo usan el frontend y Cloud Run).
+      operationId: health_api_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Health Api Health Get
+  /api/auth/register:
+    post:
+      tags:
+      - auth
+      summary: Register
+      description: Crea una cuenta con cualquier email (sin confirmación) y deja la
+        sesión abierta.
+      operationId: register_api_auth_register_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterBody'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/auth/login:
+    post:
+      tags:
+      - auth
+      summary: Login
+      description: Entrar con email y contraseña. Máximo 10 intentos cada 15 min por
+        IP y email.
+      operationId: login_api_auth_login_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginBody'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/auth/password/forgot:
+    post:
+      tags:
+      - auth
+      summary: Forgot Password
+      description: Manda un link para elegir contraseña nueva. Responde lo mismo exista
+        o no la cuenta.
+      operationId: forgot_password_api_auth_password_forgot_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordBody'
+        required: true
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Forgot Password Api Auth Password Forgot Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/auth/password/reset:
+    post:
+      tags:
+      - auth
+      summary: Reset With Token
+      description: Contraseña nueva con el link del email; además abre la sesión.
+      operationId: reset_with_token_api_auth_password_reset_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordBody'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/auth/password:
+    post:
+      tags:
+      - auth
+      summary: Set Password
+      description: Cambiar mi contraseña, o ponerme una si mi cuenta es solo de Google.
+      operationId: set_password_api_auth_password_post
+      parameters:
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordBody'
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/auth/google:
+    post:
+      tags:
+      - auth
+      summary: Login With Google
+      description: Recibe el ID token de Google, crea o une la cuenta y pone la cookie.
+      operationId: login_with_google_api_auth_google_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleLogin'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/auth/logout:
+    post:
+      tags:
+      - auth
+      summary: Logout
+      description: Borra la cookie de sesión.
+      operationId: logout_api_auth_logout_post
+      responses:
+        '204':
+          description: Successful Response
+  /api/auth/me:
+    get:
+      tags:
+      - auth
+      summary: Me
+      description: Usuario de la sesión actual (401 si no hay).
+      operationId: me_api_auth_me_get
+      parameters:
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - auth
+      summary: Delete Me
+      description: 'Eliminar mi cuenta: anonimiza mis datos y cierra la sesión (ver
+        services/account.py).'
+      operationId: delete_me_api_auth_me_delete
+      parameters:
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces:
+    get:
+      tags:
+      - workspaces
+      summary: List My Workspaces
+      description: Espacios en los que soy miembro activo (propios e invitados, archivados
+        incluidos).
+      operationId: list_my_workspaces_api_workspaces_get
+      parameters:
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkspaceRead'
+                title: Response List My Workspaces Api Workspaces Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - workspaces
+      summary: Create Workspace
+      description: Crea un espacio del que soy dueño (y miembro). Máximo 5 propios
+        sin archivar.
+      operationId: create_workspace_api_workspaces_post
+      parameters:
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkspaceCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}:
+    patch:
+      tags:
+      - workspaces
+      summary: Update Workspace
+      description: Renombrar, archivar/desarchivar o transferir la propiedad a otro
+        miembro activo.
+      operationId: update_workspace_api_workspaces__wid__patch
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkspaceUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - workspaces
+      summary: Delete Workspace
+      description: 'Borra el espacio de verdad, con todo lo suyo, solo si no tiene
+        ninguna tarea registrada.
+
+
+        Con horas no se borra (son datos de otras personas): se archiva.'
+      operationId: delete_workspace_api_workspaces__wid__delete
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/members:
+    get:
+      tags:
+      - workspaces
+      summary: List Members
+      description: Miembros activos del espacio, el dueño primero.
+      operationId: list_members_api_workspaces__wid__members_get
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MemberRead'
+                title: Response List Members Api Workspaces  Wid  Members Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/members/{uid}/access:
+    put:
+      tags:
+      - workspaces
+      summary: Update Member Access
+      description: 'El dueño decide qué ve un miembro: todos los proyectos o solo
+        los de la lista.'
+      operationId: update_member_access_api_workspaces__wid__members__uid__access_put
+      parameters:
+      - name: uid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Uid
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberAccessUpdate'
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/members/{uid}:
+    delete:
+      tags:
+      - workspaces
+      summary: Remove Member
+      description: 'Salir del espacio (uid = yo) o expulsar a alguien (solo el dueño).
+
+
+        No se borra la fila: se marca `removed_at` para que sus horas sigan en los
+        informes.'
+      operationId: remove_member_api_workspaces__wid__members__uid__delete
+      parameters:
+      - name: uid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Uid
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/invitations:
+    get:
+      tags:
+      - workspaces
+      summary: List Invitations
+      description: Links del espacio, los más recientes primero (también caducados
+        y revocados).
+      operationId: list_invitations_api_workspaces__wid__invitations_get
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InvitationRead'
+                title: Response List Invitations Api Workspaces  Wid  Invitations
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - workspaces
+      summary: Create Invitation
+      description: 'Crea un link que caduca a los 10 días, al espacio entero o solo
+        a un proyecto.
+
+
+        El token solo se ve en esta respuesta.'
+      operationId: create_invitation_api_workspaces__wid__invitations_post
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationCreated'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/invitations/{invitation_id}:
+    delete:
+      tags:
+      - workspaces
+      summary: Revoke Invitation
+      description: 'Revoca un link: deja de servir aunque no haya caducado.'
+      operationId: revoke_invitation_api_workspaces__wid__invitations__invitation_id__delete
+      parameters:
+      - name: invitation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Invitation Id
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/invitations/{token}:
+    get:
+      tags:
+      - invitations
+      summary: Preview Invitation
+      description: 'A qué espacio (y proyecto) invita el link y si sigue valiendo.
+        Público: se ve antes de
+
+        iniciar sesión.'
+      operationId: preview_invitation_api_invitations__token__get
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Token
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationPreview'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/invitations/{token}/accept:
+    post:
+      tags:
+      - invitations
+      summary: Accept Invitation
+      description: "Une al usuario al espacio con el alcance del link.\n\n- Link al\
+        \ espacio: ve todos los proyectos (también si antes solo veía alguno).\n-\
+        \ Link a un proyecto: si no era miembro, entra viendo solo ese proyecto; si\
+        \ ya era miembro\n  limitado, se le suma ese proyecto.\nSi el link no le da\
+        \ nada nuevo (ya lo veía), no gasta un uso."
+      operationId: accept_invitation_api_invitations__token__accept_post
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Token
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/projects:
+    get:
+      tags:
+      - catalog
+      summary: List Projects
+      description: 'Proyectos del espacio que puedo ver (todos, o solo aquellos a
+        los que me invitaron).
+
+
+        Por defecto solo los activos (los que salen en la app).'
+      operationId: list_projects_api_workspaces__wid__projects_get
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: include_archived
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Archived
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProjectRead'
+                title: Response List Projects Api Workspaces  Wid  Projects Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - catalog
+      summary: Create Project
+      operationId: create_project_api_workspaces__wid__projects_post
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/projects/{project_id}:
+    patch:
+      tags:
+      - catalog
+      summary: Update Project
+      description: Renombrar, cambiar color o archivar/desarchivar.
+      operationId: update_project_api_workspaces__wid__projects__project_id__patch
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - catalog
+      summary: Delete Project
+      description: Borra el proyecto de verdad solo si no tiene ninguna tarea; si
+        tiene, hay que archivarlo.
+      operationId: delete_project_api_workspaces__wid__projects__project_id__delete
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/categories:
+    get:
+      tags:
+      - catalog
+      summary: List Categories
+      description: Labels del espacio, cada una con sus sublabels. Por defecto solo
+        las activas.
+      operationId: list_categories_api_workspaces__wid__categories_get
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: include_archived
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Archived
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryRead'
+                title: Response List Categories Api Workspaces  Wid  Categories Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - catalog
+      summary: Create Category
+      operationId: create_category_api_workspaces__wid__categories_post
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogItemCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/categories/{category_id}:
+    patch:
+      tags:
+      - catalog
+      summary: Update Category
+      description: 'Renombrar o archivar/desarchivar. Archivarla no toca sus sublabels:
+        al no salir la
+
+        label en los desplegables, sus sublabels tampoco.'
+      operationId: update_category_api_workspaces__wid__categories__category_id__patch
+      parameters:
+      - name: category_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Category Id
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogItemUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/categories/{category_id}/subcategories:
+    post:
+      tags:
+      - catalog
+      summary: Create Subcategory
+      operationId: create_subcategory_api_workspaces__wid__categories__category_id__subcategories_post
+      parameters:
+      - name: category_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Category Id
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogItemCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubcategoryRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/categories/{category_id}/subcategories/{subcategory_id}:
+    patch:
+      tags:
+      - catalog
+      summary: Update Subcategory
+      operationId: update_subcategory_api_workspaces__wid__categories__category_id__subcategories__subcategory_id__patch
+      parameters:
+      - name: category_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Category Id
+      - name: subcategory_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Subcategory Id
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogItemUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubcategoryRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/entries:
+    get:
+      tags:
+      - entries
+      summary: List My Entries
+      description: 'Mis registros en el espacio (solo de proyectos a los que tengo
+        acceso), los más recientes
+
+        primero.
+
+
+        `from` y `to` son días (AAAA-MM-DD, ambos incluidos) en hora de España. Un
+        registro cuenta
+
+        en el día en que empieza, igual que en las quincenas.'
+      operationId: list_my_entries_api_workspaces__wid__entries_get
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: from
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: From
+      - name: to
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: To
+      - name: project_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Project Id
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimeEntryRead'
+                title: Response List My Entries Api Workspaces  Wid  Entries Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - entries
+      summary: Create Entry
+      description: Registro manual con inicio y fin.
+      operationId: create_entry_api_workspaces__wid__entries_post
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimeEntryCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimeEntryRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/entries/{entry_id}:
+    patch:
+      tags:
+      - entries
+      summary: Update Entry
+      description: 'Editar un registro propio. Al cronómetro en marcha no se le pone
+        fin aquí: se para con
+
+        POST /timer/stop.'
+      operationId: update_entry_api_entries__entry_id__patch
+      parameters:
+      - name: entry_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Entry Id
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimeEntryUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimeEntryRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - entries
+      summary: Delete Entry
+      description: 'Borrar un registro propio (también descarta un cronómetro en marcha).
+
+
+        Es lo único que se borra de verdad: es un dato tuyo, no algo de lo que dependan
+        otros.'
+      operationId: delete_entry_api_entries__entry_id__delete
+      parameters:
+      - name: entry_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Entry Id
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/timer/start:
+    post:
+      tags:
+      - entries
+      summary: Start Timer
+      description: 'Arranca el cronómetro. Si ya había uno en marcha (en este u otro
+        espacio), lo para
+
+        primero, como hace Clockify.'
+      operationId: start_timer_api_workspaces__wid__timer_start_post
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimerStart'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimeEntryRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/timer/stop:
+    post:
+      tags:
+      - entries
+      summary: Stop Timer
+      description: Para mi cronómetro, esté en el espacio que esté.
+      operationId: stop_timer_api_timer_stop_post
+      parameters:
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimeEntryRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/timer/current:
+    get:
+      tags:
+      - entries
+      summary: Current Timer
+      description: Mi cronómetro en marcha, o null.
+      operationId: current_timer_api_timer_current_get
+      parameters:
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/TimeEntryRead'
+                - type: 'null'
+                title: Response Current Timer Api Timer Current Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/reports/summary:
+    get:
+      tags:
+      - reports
+      summary: Report Summary
+      description: Total del grupo filtrado y desgloses por trabajador, proyecto,
+        label y día.
+      operationId: report_summary_api_workspaces__wid__reports_summary_get
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: period
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'Quincena: AAAA-MM-A o AAAA-MM-B'
+          title: Period
+        description: 'Quincena: AAAA-MM-A o AAAA-MM-B'
+      - name: from
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: From
+      - name: to
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: To
+      - name: user_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: User Id
+      - name: project_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Project Id
+      - name: category_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Category Id
+      - name: subcategory_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Subcategory Id
+      - name: q
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          description: Texto en el título
+          title: Q
+        description: Texto en el título
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportSummary'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/reports/entries:
+    get:
+      tags:
+      - reports
+      summary: Report Entries
+      description: Registros que cumplen los filtros, los más recientes primero, paginados.
+      operationId: report_entries_api_workspaces__wid__reports_entries_get
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 200
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: period
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'Quincena: AAAA-MM-A o AAAA-MM-B'
+          title: Period
+        description: 'Quincena: AAAA-MM-A o AAAA-MM-B'
+      - name: from
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: From
+      - name: to
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: To
+      - name: user_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: User Id
+      - name: project_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Project Id
+      - name: category_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Category Id
+      - name: subcategory_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Subcategory Id
+      - name: q
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          description: Texto en el título
+          title: Q
+        description: Texto en el título
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportEntriesPage'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    CatalogItemCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 80
+          minLength: 1
+          title: Name
+      type: object
+      required:
+      - name
+      title: CatalogItemCreate
+      description: 'Crear una tipología o una subtipología: solo lleva nombre.'
+    CatalogItemUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 80
+            minLength: 1
+          - type: 'null'
+          title: Name
+        archived:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Archived
+      type: object
+      title: CatalogItemUpdate
+    CategoryRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        archived:
+          type: boolean
+          title: Archived
+        subcategories:
+          items:
+            $ref: '#/components/schemas/SubcategoryRead'
+          type: array
+          title: Subcategories
+      type: object
+      required:
+      - id
+      - name
+      - archived
+      - subcategories
+      title: CategoryRead
+    CategoryTotal:
+      properties:
+        category_id:
+          type: string
+          format: uuid
+          title: Category Id
+        name:
+          type: string
+          title: Name
+        total_seconds:
+          type: integer
+          title: Total Seconds
+      type: object
+      required:
+      - category_id
+      - name
+      - total_seconds
+      title: CategoryTotal
+    ChangePasswordBody:
+      properties:
+        current_password:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Current Password
+        new_password:
+          type: string
+          maxLength: 128
+          minLength: 8
+          title: New Password
+      type: object
+      required:
+      - new_password
+      title: ChangePasswordBody
+    DayTotal:
+      properties:
+        day:
+          type: string
+          format: date
+          title: Day
+        total_seconds:
+          type: integer
+          title: Total Seconds
+      type: object
+      required:
+      - day
+      - total_seconds
+      title: DayTotal
+    ForgotPasswordBody:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+      type: object
+      required:
+      - email
+      title: ForgotPasswordBody
+    GoogleLogin:
+      properties:
+        credential:
+          type: string
+          title: Credential
+      type: object
+      required:
+      - credential
+      title: GoogleLogin
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    InvitationCreate:
+      properties:
+        max_uses:
+          anyOf:
+          - type: integer
+            maximum: 100.0
+            minimum: 1.0
+          - type: 'null'
+          title: Max Uses
+        project_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Project Id
+      type: object
+      title: InvitationCreate
+    InvitationCreated:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
+        max_uses:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Uses
+        uses:
+          type: integer
+          title: Uses
+        status:
+          type: string
+          enum:
+          - active
+          - expired
+          - revoked
+          - exhausted
+          - archived
+          title: Status
+        project_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Project Id
+        project_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Project Name
+        token:
+          type: string
+          title: Token
+      type: object
+      required:
+      - id
+      - created_at
+      - expires_at
+      - max_uses
+      - uses
+      - status
+      - project_id
+      - project_name
+      - token
+      title: InvitationCreated
+    InvitationPreview:
+      properties:
+        workspace_name:
+          type: string
+          title: Workspace Name
+        owner_name:
+          type: string
+          title: Owner Name
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
+        status:
+          type: string
+          enum:
+          - active
+          - expired
+          - revoked
+          - exhausted
+          - archived
+          title: Status
+        project_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Project Id
+        project_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Project Name
+      type: object
+      required:
+      - workspace_name
+      - owner_name
+      - expires_at
+      - status
+      - project_id
+      - project_name
+      title: InvitationPreview
+      description: Lo que ve quien abre un link, aunque no haya iniciado sesión.
+    InvitationRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
+        max_uses:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Uses
+        uses:
+          type: integer
+          title: Uses
+        status:
+          type: string
+          enum:
+          - active
+          - expired
+          - revoked
+          - exhausted
+          - archived
+          title: Status
+        project_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Project Id
+        project_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Project Name
+      type: object
+      required:
+      - id
+      - created_at
+      - expires_at
+      - max_uses
+      - uses
+      - status
+      - project_id
+      - project_name
+      title: InvitationRead
+    LoginBody:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+        password:
+          type: string
+          maxLength: 128
+          minLength: 1
+          title: Password
+      type: object
+      required:
+      - email
+      - password
+      title: LoginBody
+    MemberAccessUpdate:
+      properties:
+        all_projects:
+          type: boolean
+          title: All Projects
+        project_ids:
+          items:
+            type: string
+            format: uuid
+          type: array
+          title: Project Ids
+          default: []
+      type: object
+      required:
+      - all_projects
+      title: MemberAccessUpdate
+      description: 'Qué proyectos puede ver un miembro: todos, o solo los de la lista.'
+    MemberRead:
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        name:
+          type: string
+          title: Name
+        email:
+          type: string
+          title: Email
+        avatar_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Avatar Url
+        is_owner:
+          type: boolean
+          title: Is Owner
+        joined_at:
+          type: string
+          format: date-time
+          title: Joined At
+        all_projects:
+          type: boolean
+          title: All Projects
+        project_ids:
+          items:
+            type: string
+            format: uuid
+          type: array
+          title: Project Ids
+      type: object
+      required:
+      - user_id
+      - name
+      - email
+      - avatar_url
+      - is_owner
+      - joined_at
+      - all_projects
+      - project_ids
+      title: MemberRead
+    ProjectCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 80
+          minLength: 1
+          title: Name
+        color:
+          type: string
+          pattern: ^#[0-9a-fA-F]{6}$
+          title: Color
+          default: '#2a78d6'
+      type: object
+      required:
+      - name
+      title: ProjectCreate
+    ProjectRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        color:
+          type: string
+          title: Color
+        archived:
+          type: boolean
+          title: Archived
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - name
+      - color
+      - archived
+      - created_at
+      title: ProjectRead
+    ProjectTotal:
+      properties:
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        name:
+          type: string
+          title: Name
+        color:
+          type: string
+          title: Color
+        total_seconds:
+          type: integer
+          title: Total Seconds
+      type: object
+      required:
+      - project_id
+      - name
+      - color
+      - total_seconds
+      title: ProjectTotal
+    ProjectUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 80
+            minLength: 1
+          - type: 'null'
+          title: Name
+        color:
+          anyOf:
+          - type: string
+            pattern: ^#[0-9a-fA-F]{6}$
+          - type: 'null'
+          title: Color
+        archived:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Archived
+      type: object
+      title: ProjectUpdate
+      description: Solo se cambia lo que llega.
+    RegisterBody:
+      properties:
+        name:
+          type: string
+          maxLength: 80
+          minLength: 1
+          title: Name
+        email:
+          type: string
+          format: email
+          title: Email
+        password:
+          type: string
+          maxLength: 128
+          minLength: 8
+          title: Password
+      type: object
+      required:
+      - name
+      - email
+      - password
+      title: RegisterBody
+    ReportEntriesPage:
+      properties:
+        total:
+          type: integer
+          title: Total
+        items:
+          items:
+            $ref: '#/components/schemas/ReportEntry'
+          type: array
+          title: Items
+      type: object
+      required:
+      - total
+      - items
+      title: ReportEntriesPage
+    ReportEntry:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        workspace_id:
+          type: string
+          format: uuid
+          title: Workspace Id
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        category_id:
+          type: string
+          format: uuid
+          title: Category Id
+        subcategory_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Subcategory Id
+        title:
+          type: string
+          title: Title
+        start_at:
+          type: string
+          format: date-time
+          title: Start At
+        end_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End At
+        source:
+          type: string
+          enum:
+          - manual
+          - timer
+          title: Source
+        duration_seconds:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Duration Seconds
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        user_name:
+          type: string
+          title: User Name
+      type: object
+      required:
+      - id
+      - workspace_id
+      - project_id
+      - category_id
+      - subcategory_id
+      - title
+      - start_at
+      - end_at
+      - source
+      - duration_seconds
+      - user_id
+      - user_name
+      title: ReportEntry
+      description: 'Un registro del panel: como los propios, pero con el nombre de
+        quien lo hizo.'
+    ReportSummary:
+      properties:
+        from_date:
+          type: string
+          format: date
+          title: From Date
+        to_date:
+          type: string
+          format: date
+          title: To Date
+        total_seconds:
+          type: integer
+          title: Total Seconds
+        entry_count:
+          type: integer
+          title: Entry Count
+        by_user:
+          items:
+            $ref: '#/components/schemas/UserTotal'
+          type: array
+          title: By User
+        by_project:
+          items:
+            $ref: '#/components/schemas/ProjectTotal'
+          type: array
+          title: By Project
+        by_category:
+          items:
+            $ref: '#/components/schemas/CategoryTotal'
+          type: array
+          title: By Category
+        by_day:
+          items:
+            $ref: '#/components/schemas/DayTotal'
+          type: array
+          title: By Day
+      type: object
+      required:
+      - from_date
+      - to_date
+      - total_seconds
+      - entry_count
+      - by_user
+      - by_project
+      - by_category
+      - by_day
+      title: ReportSummary
+      description: Totales del grupo de registros que cumple los filtros.
+    ResetPasswordBody:
+      properties:
+        token:
+          type: string
+          title: Token
+        password:
+          type: string
+          maxLength: 128
+          minLength: 8
+          title: Password
+      type: object
+      required:
+      - token
+      - password
+      title: ResetPasswordBody
+    SubcategoryRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        category_id:
+          type: string
+          format: uuid
+          title: Category Id
+        name:
+          type: string
+          title: Name
+        archived:
+          type: boolean
+          title: Archived
+      type: object
+      required:
+      - id
+      - category_id
+      - name
+      - archived
+      title: SubcategoryRead
+    TimeEntryCreate:
+      properties:
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        category_id:
+          type: string
+          format: uuid
+          title: Category Id
+        subcategory_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Subcategory Id
+        title:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Title
+        start_at:
+          type: string
+          format: date-time
+          title: Start At
+        end_at:
+          type: string
+          format: date-time
+          title: End At
+      type: object
+      required:
+      - project_id
+      - category_id
+      - title
+      - start_at
+      - end_at
+      title: TimeEntryCreate
+      description: 'Registro manual: como arrancar el cronómetro, pero con inicio
+        y fin escritos.
+
+
+        Las fechas deben llevar zona horaria (el front manda UTC, p. ej. "2026-10-05T08:00:00Z").'
+    TimeEntryRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        workspace_id:
+          type: string
+          format: uuid
+          title: Workspace Id
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        category_id:
+          type: string
+          format: uuid
+          title: Category Id
+        subcategory_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Subcategory Id
+        title:
+          type: string
+          title: Title
+        start_at:
+          type: string
+          format: date-time
+          title: Start At
+        end_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End At
+        source:
+          type: string
+          enum:
+          - manual
+          - timer
+          title: Source
+        duration_seconds:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Duration Seconds
+      type: object
+      required:
+      - id
+      - workspace_id
+      - project_id
+      - category_id
+      - subcategory_id
+      - title
+      - start_at
+      - end_at
+      - source
+      - duration_seconds
+      title: TimeEntryRead
+    TimeEntryUpdate:
+      properties:
+        project_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Project Id
+        category_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Category Id
+        subcategory_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Subcategory Id
+        title:
+          anyOf:
+          - type: string
+            maxLength: 200
+            minLength: 1
+          - type: 'null'
+          title: Title
+        start_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start At
+        end_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End At
+      type: object
+      title: TimeEntryUpdate
+      description: 'Solo se cambia lo que llega. `subcategory_id: null` explícito
+        quita la sublabel.'
+    TimerStart:
+      properties:
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        category_id:
+          type: string
+          format: uuid
+          title: Category Id
+        subcategory_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Subcategory Id
+        title:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Title
+      type: object
+      required:
+      - project_id
+      - category_id
+      - title
+      title: TimerStart
+      description: Arrancar el cronómetro desde la hoja de un proyecto.
+    UserRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        email:
+          type: string
+          title: Email
+        avatar_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Avatar Url
+        has_password:
+          type: boolean
+          title: Has Password
+        is_admin:
+          type: boolean
+          title: Is Admin
+      type: object
+      required:
+      - id
+      - name
+      - email
+      - avatar_url
+      - has_password
+      - is_admin
+      title: UserRead
+    UserTotal:
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        name:
+          type: string
+          title: Name
+        total_seconds:
+          type: integer
+          title: Total Seconds
+      type: object
+      required:
+      - user_id
+      - name
+      - total_seconds
+      title: UserTotal
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+    WorkspaceCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 80
+          minLength: 1
+          title: Name
+      type: object
+      required:
+      - name
+      title: WorkspaceCreate
+    WorkspaceRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        owner_id:
+          type: string
+          format: uuid
+          title: Owner Id
+        archived:
+          type: boolean
+          title: Archived
+        is_owner:
+          type: boolean
+          title: Is Owner
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - name
+      - owner_id
+      - archived
+      - is_owner
+      - created_at
+      title: WorkspaceRead
+    WorkspaceUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 80
+            minLength: 1
+          - type: 'null'
+          title: Name
+        archived:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Archived
+        owner_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Owner Id
+      type: object
+      title: WorkspaceUpdate
+      description: 'Todos los campos son opcionales: solo se cambia lo que llega.'

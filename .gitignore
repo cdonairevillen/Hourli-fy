@@ -1,0 +1,12 @@
+# Secretos
+.env
+.env.*
+!.env.example
+.cloud_credentials
+
+
+# Editores y SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

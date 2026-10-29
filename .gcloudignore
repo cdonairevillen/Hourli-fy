@@ -1,0 +1,17 @@
+# Lo que gcloud run deploy --source NO sube a Cloud Build (mismo criterio que .dockerignore).
+.git
+.github
+**/.env
+**/.env.*
+.cloud_credentials
+hourli-fy
+docs
+specs
+**/node_modules
+**/dist
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+backend/tests
+backend/scripts
