@@ -127,4 +127,11 @@
   body {
     @apply bg-background text-foreground;
     }
+  /* Lista abierta de los <select> nativos: Chrome en Windows pinta las opciones con el fondo del
+     select (transparente → blanco) y el color de texto heredado (blanco en modo oscuro), y no se
+     leía nada. Con fondo y texto explícitos se ven bien en los dos modos. */
+  option,
+  optgroup {
+    @apply bg-popover text-popover-foreground;
+    }
 }

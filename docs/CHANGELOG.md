@@ -19,6 +19,9 @@ Detalle, plan y decisiones en [CHANGELOG-fase-9.md](CHANGELOG-fase-9.md). Desde 
 - **Paso 5 · Ventanita del cronómetro**: botón ⧉ que abre el cronómetro en una ventana siempre
   encima (Chrome/Edge) o emergente (resto), y el tiempo en el título de la pestaña.
 - **Paso 5b · Rango en Mi hoja**: botón "Rango" con desde/hasta, hasta 31 días.
+- **Paso 6 · Desplegado** en Cloud Run y comprobado.
+- **Paso 6b · Desplegables en modo oscuro**: la lista abierta salía blanca con letras blancas.
+- Ideas para más adelante: labels con color y estadísticas del proyecto (ver el detalle).
 
 ## 2026-10-10 · master · Despliegue: la web pasa a Cloud Run (sin Cloudflare)
 

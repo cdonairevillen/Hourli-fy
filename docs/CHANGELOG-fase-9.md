@@ -11,9 +11,10 @@ changelog general está en [CHANGELOG.md](CHANGELOG.md).
 | 2 | Modo oscuro con interruptor | Preferencia guardada en el navegador; la primera vez sigue al sistema | ✅ Hecho |
 | 3 | Periodos de 14 días en vez de quincenas A/B | Bloques seguidos de 14 días contados desde el **sábado 7-nov-2026** | ✅ Hecho |
 | 4 | Autocompletar al escribir una tarea | Tareas del propio trabajador en ese proyecto; rellena también label y sublabel | ✅ Hecho |
-| 5 | Ventanita flotante con el cronómetro | Picture-in-Picture en Chrome/Edge, ventana emergente en el resto, y tiempo en la pestaña | ✅ Hecho (falta probarlo a mano) |
-| 5b | Rango de días a elegir en Mi hoja (pedido durante la fase) | Hasta 31 días; al pulsar "Rango" sale relleno con el periodo en pantalla | ✅ Hecho (falta probarlo a mano) |
-| 6 | Desplegar y comprobar en producción | — | Pendiente |
+| 5 | Ventanita flotante con el cronómetro | Picture-in-Picture en Chrome/Edge, ventana emergente en el resto, y tiempo en la pestaña | ✅ Hecho |
+| 5b | Rango de días a elegir en Mi hoja (pedido durante la fase) | Hasta 31 días; al pulsar "Rango" sale relleno con el periodo en pantalla | ✅ Hecho |
+| 6 | Desplegar y comprobar en producción | — | ✅ Hecho (2026-11-07) |
+| 6b | Desplegables ilegibles en modo oscuro (visto en producción) | Fondo oscuro también en la lista abierta | ✅ Hecho (falta redesplegar) |
 
 Otras decisiones:
 - **Se trabaja en `main`** (antes `master`). `main` ya contenía todo `master` (PR #1). La base de
@@ -328,3 +329,45 @@ mi hoja: rango de días a elegir (hasta 31)
 ```
 Archivos: `frontend/src/components/entries/TimesheetCard.tsx`, `README.md`,
 `docs/CHANGELOG-fase-9.md`, `docs/CHANGELOG.md`.
+
+## Paso 6 · Despliegue
+
+- Copia de seguridad previa lanzada a mano, `git checkout main && git pull` en Cloud Shell y
+  `gcloud run deploy` (sin migraciones nuevas). Comprobados en producción el modo oscuro, los
+  periodos, el autocompletar, la ventanita y el rango de Mi hoja.
+
+## Paso 6b · Desplegables en modo oscuro
+
+### El problema
+Visto en producción: al abrir un desplegable (label, sublabel, filtros del panel…) en modo oscuro,
+la lista salía **blanca con letras blancas**. Chrome en Windows pinta las opciones de un `<select>`
+con el fondo del propio select, y el nuestro era transparente (→ blanco), mientras el texto
+heredaba el blanco del modo oscuro. `color-scheme: dark` (paso 2) no bastaba.
+
+### Arreglo
+- `src/index.css`: las `<option>` y `<optgroup>` tienen fondo y texto explícitos (`bg-popover` y
+  `text-popover-foreground`), así se leen en los dos modos y en cualquier navegador.
+- `src/components/NativeSelect.tsx`: el desplegable cerrado usa en oscuro el mismo fondo que los
+  campos de texto (`dark:bg-input/30`, como el `<Input>` de shadcn).
+- Lint y build en verde. Hay que **volver a desplegar** (pasos 2–4 de antes) y comprobarlo con
+  Ctrl+F5.
+
+### Commit propuesto
+```
+front: desplegables legibles en modo oscuro
+
+- option/optgroup con fondo y texto del tema (Chrome en Windows los pintaba blancos)
+- NativeSelect con el mismo fondo que Input en oscuro
+```
+Archivos: `frontend/src/index.css`, `frontend/src/components/NativeSelect.tsx`,
+`docs/CHANGELOG-fase-9.md`, `docs/CHANGELOG.md`.
+
+## Ideas para más adelante (del autor, sin decidir todavía)
+
+1. **Labels con color.** El sistema de labels se queda igual, pero cada label padre tiene un color
+   (p. ej. Programación en rojo, Modelado en verde) que heredan todas sus sublabels. Supondrá
+   una columna nueva en `categories` (con migración), elegir el color en el Catálogo y usarlo en
+   la hoja, Mi hoja y las gráficas. Habrá que cuidar que los colores se lean en claro y en oscuro
+   y que se distingan con daltonismo (como la paleta de proyectos).
+2. **Estadísticas del proyecto.** Un apartado con gráficas que se adapten a los filtros elegidos
+   (por departamento/label, por trabajador…). Se hablará en detalle antes de diseñarlo.
