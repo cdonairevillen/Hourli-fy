@@ -16,6 +16,9 @@ Detalle, plan y decisiones en [CHANGELOG-fase-9.md](CHANGELOG-fase-9.md). Desde 
   quincenas A/B; `period=AAAA-MM-DD`. Panel y Mi hoja con "2 semanas".
 - **Paso 4 · Autocompletar**: al escribir una tarea se sugieren las mías anteriores en ese
   proyecto; al elegir una se ponen su label y sublabel.
+- **Paso 5 · Ventanita del cronómetro**: botón ⧉ que abre el cronómetro en una ventana siempre
+  encima (Chrome/Edge) o emergente (resto), y el tiempo en el título de la pestaña.
+- **Paso 5b · Rango en Mi hoja**: botón "Rango" con desde/hasta, hasta 31 días.
 
 ## 2026-10-10 · master · Despliegue: la web pasa a Cloud Run (sin Cloudflare)
 

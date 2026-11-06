@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { apiGet } from '@/lib/api'
 import { useCatalog } from '@/lib/catalog'
 import {
@@ -16,21 +17,42 @@ import {
 } from '@/lib/time'
 import type { TimeEntry, Workspace } from '@/lib/types'
 
-type Mode = 'week' | 'fortnight'
+type Mode = 'week' | 'fortnight' | 'range'
 
-// "Mi hoja": mis horas del espacio en una semana o un periodo de 14 días, como una hoja de cálculo.
+// Una columna por día: con más de un mes la tabla deja de leerse. Para más, el Panel.
+const MAX_RANGE_DAYS = 31
+
+// Días de from a to, ambos incluidos (0 si el rango está al revés o incompleto).
+function rangeLength(from: string, to: string): number {
+  if (!from || !to || from > to) return 0
+  return Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1
+}
+
+// "Mi hoja": mis horas del espacio en una semana, un periodo de 14 días o un rango de hasta 31
+// días, como una hoja de cálculo.
 // Filas = proyecto + label; columnas = días. Solo lectura: se edita desde cada proyecto.
 export function TimesheetCard({ workspace }: { workspace: Workspace }) {
   const [mode, setMode] = useState<Mode>('fortnight')
   const [anchor, setAnchor] = useState(todayKey)
-  const period = mode === 'week' ? weekOf(anchor) : fortnightOf(anchor)
-  const days = daysBetween(period.from, period.to)
+  const [range, setRange] = useState({ from: '', to: '' })
+  const shown = mode === 'week' ? weekOf(anchor) : fortnightOf(anchor)
+  const period = mode === 'range' ? { ...range, label: '' } : shown
+  const rangeDays = rangeLength(range.from, range.to)
+  const valid = mode !== 'range' || (rangeDays > 0 && rangeDays <= MAX_RANGE_DAYS)
+  const days = valid ? daysBetween(period.from, period.to) : []
   const catalog = useCatalog(workspace.id)
   const entries = useQuery({
     queryKey: ['entries', workspace.id, { from: period.from, to: period.to }],
     queryFn: () =>
       apiGet<TimeEntry[]>(`/workspaces/${workspace.id}/entries?from=${period.from}&to=${period.to}`),
+    enabled: valid,
   })
+
+  // Al pasar a "Rango" se parte del periodo que estaba en pantalla, no de fechas vacías.
+  function chooseRange() {
+    if (mode !== 'range') setRange({ from: shown.from, to: shown.to })
+    setMode('range')
+  }
 
   // Suma de segundos por fila (proyecto + label) y día. El cronómetro en marcha aún no suma.
   const rows = new Map<string, { projectId: string; label: string; perDay: Map<string, number> }>()
@@ -69,20 +91,38 @@ export function TimesheetCard({ workspace }: { workspace: Workspace }) {
           <Button size="sm" variant={mode === 'week' ? 'default' : 'outline'} onClick={() => setMode('week')}>
             Semana
           </Button>
-          <div className="ml-auto flex items-center gap-1">
-            {/* Saltar desde el primer/último día garantiza caer en el periodo anterior/siguiente. */}
-            <Button size="sm" variant="ghost" onClick={() => setAnchor(addDays(period.from, -1))}>
-              ‹
-            </Button>
-            <span className="min-w-52 text-center text-sm font-medium capitalize">{period.label}</span>
-            <Button size="sm" variant="ghost" onClick={() => setAnchor(addDays(period.to, 1))}>
-              ›
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setAnchor(todayKey())}>
-              Hoy
-            </Button>
-          </div>
+          <Button size="sm" variant={mode === 'range' ? 'default' : 'outline'} onClick={chooseRange}>
+            Rango
+          </Button>
+          {mode === 'range' ? (
+            <div className="ml-auto flex items-center gap-2">
+              <Input type="date" className="w-40" aria-label="Desde" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
+              <span>–</span>
+              <Input type="date" className="w-40" aria-label="Hasta" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+            </div>
+          ) : (
+            <div className="ml-auto flex items-center gap-1">
+              {/* Saltar desde el primer/último día garantiza caer en el periodo anterior/siguiente. */}
+              <Button size="sm" variant="ghost" onClick={() => setAnchor(addDays(period.from, -1))}>
+                ‹
+              </Button>
+              <span className="min-w-52 text-center text-sm font-medium capitalize">{period.label}</span>
+              <Button size="sm" variant="ghost" onClick={() => setAnchor(addDays(period.to, 1))}>
+                ›
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setAnchor(todayKey())}>
+                Hoy
+              </Button>
+            </div>
+          )}
         </div>
+        {!valid && (
+          <p className="text-sm text-destructive">
+            {rangeDays > MAX_RANGE_DAYS
+              ? `Como mucho ${MAX_RANGE_DAYS} días (una columna por día). Para periodos más largos, usa el Panel.`
+              : 'Elige un rango válido: la fecha de inicio no puede ser posterior a la de fin.'}
+          </p>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

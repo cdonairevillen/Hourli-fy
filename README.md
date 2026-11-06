@@ -57,7 +57,7 @@ exportaciones.
    - apuntas **a mano** el día y las horas de inicio y fin.
 
    Lo que registras ahí queda ligado a ese proyecto; no hay que elegirlo.
-5. **Revisar tus horas** (pestaña *Mi hoja*): una hoja de cálculo de tu semana o tu periodo de 14 días,
+5. **Revisar tus horas** (pestaña *Mi hoja*): una hoja de cálculo de tu semana, tu periodo de 14 días o el rango que elijas (hasta 31 días),
    con proyectos y labels en filas, días en columnas y totales.
 6. **El dueño consulta el panel** (pestaña *Panel*): total de horas del equipo por periodo de 14 días o
    rango de fechas, filtrable por persona, proyecto, label, sublabel y texto de la tarea; con la
@@ -87,7 +87,7 @@ Los roles son **por espacio**: puedes ser dueño de uno y miembro de otro.
 | --- | --- | --- |
 | Ver proyectos y labels | Los suyos* | Todos |
 | Registrar, editar y borrar **sus propias** tareas; cronómetro | Sí | Sí |
-| Ver su hoja (semana / 2 semanas) | Sí | Sí |
+| Ver su hoja (semana / 2 semanas / rango) | Sí | Sí |
 | Salir del espacio | Sí | No (antes transfiere o archiva) |
 | Crear, renombrar y archivar proyectos, labels y sublabels | No | Sí |
 | Crear y revocar links de invitación (al espacio o a un proyecto) | No | Sí |
@@ -207,7 +207,7 @@ Fuera de `app/`:
 | `components/auth/AuthPanel.tsx` | Pestañas "Entrar" / "Crear cuenta" con email y contraseña, "¿Olvidaste tu contraseña?" y, debajo, el botón de Google (solo si hay `VITE_GOOGLE_CLIENT_ID`). |
 | `components/GoogleLoginButton.tsx` | Carga Google Identity Services, pinta el botón oficial y manda el ID token a la API. |
 | `components/catalog/` | `ProjectsCard` (proyectos con paleta de colores validada para daltonismo), `CategoriesCard` (labels con sus sublabels) e `ItemActions` (renombrar en línea, archivar, crear, "ver archivados"). |
-| `components/entries/` | `TimerBar` (cronómetro en la cabecera), `TaskForm` (nueva tarea con cronómetro o a mano; autocompleta con mis tareas anteriores), `EntryRow` (una tarea, con edición en línea que solo manda lo que cambia), `LabelPicker` (desplegables label → sublabel), `ProjectLinks` (pestaña Proyectos) y `TimesheetCard` (Mi hoja). |
+| `components/entries/` | `TimerBar` (cronómetro en la cabecera, con el tiempo en el título de la pestaña y la ventanita flotante), `TaskForm` (nueva tarea con cronómetro o a mano; autocompleta con mis tareas anteriores), `EntryRow` (una tarea, con edición en línea que solo manda lo que cambia), `LabelPicker` (desplegables label → sublabel), `ProjectLinks` (pestaña Proyectos) y `TimesheetCard` (Mi hoja). |
 | `components/reports/` | `ReportPanel` (filtros, total, reparto por persona/proyecto/label y lista paginada) y `DailyHoursChart` (gráfica de horas por día en SVG, con tooltip accesible por teclado y vista de tabla). |
 | `components/NativeSelect.tsx` y `components/ui/` | Desplegable nativo con estilo de `Input`, y los componentes de shadcn (`button`, `card`, `input`, `badge`). |
 | `lib/api.ts` | `apiGet` / `apiPost` / `apiPatch` / `apiDelete`: `fetch` a `/api` con la cookie; `ApiError` lleva el código y el mensaje de FastAPI para mostrarlo tal cual. |

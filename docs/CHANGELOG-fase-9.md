@@ -11,7 +11,8 @@ changelog general está en [CHANGELOG.md](CHANGELOG.md).
 | 2 | Modo oscuro con interruptor | Preferencia guardada en el navegador; la primera vez sigue al sistema | ✅ Hecho |
 | 3 | Periodos de 14 días en vez de quincenas A/B | Bloques seguidos de 14 días contados desde el **sábado 7-nov-2026** | ✅ Hecho |
 | 4 | Autocompletar al escribir una tarea | Tareas del propio trabajador en ese proyecto; rellena también label y sublabel | ✅ Hecho |
-| 5 | Ventanita flotante con el cronómetro | Picture-in-Picture en Chrome/Edge, ventana emergente en el resto, y tiempo en la pestaña | Pendiente |
+| 5 | Ventanita flotante con el cronómetro | Picture-in-Picture en Chrome/Edge, ventana emergente en el resto, y tiempo en la pestaña | ✅ Hecho (falta probarlo a mano) |
+| 5b | Rango de días a elegir en Mi hoja (pedido durante la fase) | Hasta 31 días; al pulsar "Rango" sale relleno con el periodo en pantalla | ✅ Hecho (falta probarlo a mano) |
 | 6 | Desplegar y comprobar en producción | — | Pendiente |
 
 Otras decisiones:
@@ -242,3 +243,88 @@ Archivos:
 - frontend: `frontend/src/components/entries/TaskForm.tsx`, `frontend/src/lib/types.ts`
 - docs: `backend/README.md`, `README.md`, `specs/api/openapi.yaml`, `docs/CHANGELOG-fase-9.md`,
   `docs/CHANGELOG.md`
+
+## Paso 5 · Ventanita flotante del cronómetro
+
+### Cómo funciona
+- **Botón ⧉** en el cronómetro de la cabecera (junto a "Parar"). Abre una ventanita con la tarea,
+  el tiempo en grande y el botón **Parar**.
+- **Chrome y Edge**: es una ventana *Picture-in-Picture* que se queda **siempre encima** de las
+  demás aplicaciones, aunque trabajes en otra. Se puede mover y cambiar de tamaño.
+- **Firefox y Safari** no tienen esa función: se abre una **ventana emergente** pequeña normal, que
+  se queda detrás si haces clic en otra aplicación. Al pasar el ratón por el botón se explica cuál
+  de las dos tocará.
+- **Al parar, la ventanita no se cierra**: se queda en espera ("Sin cronómetro en marcha") y vuelve
+  a contar en cuanto arrancas otra tarea. Se cierra con su propia X, o sola al cerrar o recargar la
+  pestaña de Hourli-fy.
+- **Título de la pestaña**: mientras corre el cronómetro, la pestaña muestra
+  `▶ 1:05:12 · Animar a Pepe`, así que se ve el tiempo aunque estés en otra pestaña.
+- **Sigue el modo claro/oscuro** de la app, también si lo cambias con la ventanita abierta.
+
+### Lo que hay que saber
+1. **La ventanita depende de la pestaña de Hourli-fy**: si cierras esa pestaña, se cierra también.
+   El cronómetro sigue corriendo en el servidor, como siempre; solo deja de verse.
+2. **Si el navegador bloquea las ventanas emergentes** (Firefox/Safari), aparece el aviso "El
+   navegador ha bloqueado la ventanita" y hay que permitirlas para Hourli-fy.
+3. **Picture-in-Picture solo funciona con HTTPS o en localhost**: en Cloud Run (https) va bien.
+
+### Por qué así
+- **Una sola forma de pintar para los dos casos.** Tanto la ventana PiP como la emergente son
+  ventanas vacías del mismo origen, y React pinta dentro con `createPortal`. El tiempo, el botón de
+  parar y los datos son los mismos de la cabecera: no hay una segunda copia de la lógica ni
+  mensajes entre ventanas.
+- **Se copian los estilos de la página** (Tailwind) al abrirla y se copia la clase `dark`; un
+  `MutationObserver` la mantiene sincronizada.
+- **Cierre fiable**: al cerrar una ventana emergente no siempre llega el evento `pagehide`, así que
+  también se comprueba cada segundo si sigue abierta.
+
+### Cambios (solo frontend)
+- `src/lib/floatingWindow.ts` (nuevo): abrir la ventanita (PiP o emergente), copiar estilos,
+  sincronizar el tema y avisar al cerrarse.
+- `src/components/entries/TimerBar.tsx`: botón ⧉, contenido de la ventanita (`FloatingTimer`) y
+  tiempo en el título de la pestaña.
+- `README.md`: descripción de `TimerBar`.
+- Lint y build en verde. **Pendiente: probarlo a mano en Chrome/Edge y en Firefox.**
+
+### Commit propuesto
+```
+cronómetro: ventanita flotante (Picture-in-Picture) y tiempo en el título de la pestaña
+
+- Chrome/Edge: Document Picture-in-Picture, siempre encima; resto: ventana emergente
+- la ventanita comparte estado con la cabecera vía createPortal y sigue el modo oscuro
+```
+Archivos: `frontend/src/lib/floatingWindow.ts`, `frontend/src/components/entries/TimerBar.tsx`,
+`README.md`, `docs/CHANGELOG-fase-9.md`, `docs/CHANGELOG.md`.
+
+## Paso 5b · Rango de días en Mi hoja
+
+Petición del autor durante la fase: que cada persona elija qué días ver en su hoja.
+
+### Cómo funciona
+- **Tercer botón "Rango"** junto a "2 semanas" y "Semana", con dos fechas: desde y hasta.
+- **Al pulsarlo sale ya relleno** con el periodo que estaba en pantalla, y desde ahí se ajusta.
+- **Como mucho 31 días** (decisión del autor). Si se pide más, o si la fecha de inicio va después
+  de la de fin, sale un aviso en rojo y no se carga nada. Para periodos más largos está el Panel
+  (modo *Rango de fechas*), que muestra totales y no una columna por día.
+
+### Por qué así
+- **Solo frontend**: la ruta de Mi hoja (`GET /workspaces/{wid}/entries?from=&to=`) ya aceptaba
+  cualquier rango; no hace falta ruta ni test nuevo.
+- **El límite de 31 días** es porque la hoja pinta una columna por día: con más de un mes deja de
+  leerse. 31 permite ver un mes natural entero.
+
+### Cambios (solo frontend)
+- `src/components/entries/TimesheetCard.tsx`: modo `range`, campos de fecha, límite
+  `MAX_RANGE_DAYS = 31` y avisos.
+- `README.md`: Mi hoja admite rango.
+- Lint y build en verde. **Pendiente: probarlo a mano.**
+
+### Commit propuesto
+```
+mi hoja: rango de días a elegir (hasta 31)
+
+- botón "Rango" con desde/hasta, relleno con el periodo en pantalla
+- aviso si el rango está al revés o pasa de 31 días
+```
+Archivos: `frontend/src/components/entries/TimesheetCard.tsx`, `README.md`,
+`docs/CHANGELOG-fase-9.md`, `docs/CHANGELOG.md`.
