@@ -3,6 +3,16 @@
 Qué se añade o cambia en cada paso, y por qué. Lo más reciente arriba.
 Formato: `## AAAA-MM-DD · rama · resumen`, con una sección por commit.
 
+## 2026-11-06 · main · Fase 9: peticiones de los usuarios
+
+Detalle, plan y decisiones en [CHANGELOG-fase-9.md](CHANGELOG-fase-9.md). Desde aquí se trabaja en
+`main`.
+
+- **Paso 1 · Copias de seguridad**: primera copia hecha y restauración probada. El workflow recorta
+  los secretos, `.gitignore` ignora las copias y la guía explica cómo restaurar en una BD vacía.
+- **Paso 2 · Modo oscuro**: botón luna/sol en la cabecera; se recuerda en el navegador y, sin
+  elección, sigue al sistema.
+
 ## 2026-10-10 · master · Despliegue: la web pasa a Cloud Run (sin Cloudflare)
 
 - **Motivo**: desde España, las IPs de Cloudflare de `hourli-fy.pages.dev` estaban bloqueadas (los

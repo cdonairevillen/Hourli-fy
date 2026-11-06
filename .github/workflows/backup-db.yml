@@ -20,6 +20,11 @@ jobs:
           BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
           set -euo pipefail
+          # Quita espacios y saltos de línea al principio y al final de los secretos: al pegarlos
+          # en GitHub se cuela a veces un salto final y pg_dump falla (invalid sslmode "require⏎").
+          trim() { local v="$1"; v="${v#"${v%%[![:space:]]*}"}"; printf '%s' "${v%"${v##*[![:space:]]}"}"; }
+          SUPABASE_DB_URL="$(trim "$SUPABASE_DB_URL")"
+          BACKUP_PASSPHRASE="$(trim "$BACKUP_PASSPHRASE")"
           name="hourlify-$(date -u +%Y-%m-%d-%H%M).dump"
           # pg_dump 18 en Docker: sirve para servidores 15, 17 y 18 (Supabase usa una de ellas).
           # Solo el esquema public: nuestras tablas y alembic_version, sin lo interno de Supabase.

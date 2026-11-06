@@ -4,6 +4,10 @@
 !.env.example
 .cloud_credentials
 
+# Copias de seguridad de la BD (llevan datos personales)
+*.dump
+*.dump.gpg
+
 
 # Editores y SO
 .vscode/

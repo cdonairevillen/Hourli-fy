@@ -48,7 +48,7 @@ Ten un bloc de notas a mano (o mejor, un gestor de contraseñas). Los irás rell
 | `GOOGLE_CLIENT_ID` | Ya lo tienes (`backend/.env`) | `1234-abc.apps.googleusercontent.com` |
 | `PROJECT_ID` | Paso 3 (Google Cloud) | `hourli-fy-123456` |
 | `SECRET_KEY` | Paso 3 (Cloud Shell) | `Zb8…` (43 caracteres) |
-| `API_URL` | Paso 3 (Cloud Run) | `[vieja url expuesta]` (es también la URL de la web) |
+| `API_URL` | Paso 3 (Cloud Run) | `https://hourlify-api-NÚMERO.europe-west1.run.app` (es también la URL de la web) |
 | `BACKUP_PASSPHRASE` | Paso 8 (la inventas tú) | cuatro o cinco palabras al azar |
 
 ---
@@ -137,7 +137,7 @@ Usa el **mismo proyecto de Google Cloud** donde creaste el Client ID de OAuth.
 
 ### 3.3 Variables de la API
 La URL de Cloud Run es fija para cada proyecto y nombre de servicio:
-`[vieja url expuesta]`, donde NÚMERO es el *número de proyecto*
+`https://hourlify-api-NÚMERO.europe-west1.run.app`, donde NÚMERO es el *número de proyecto*
 (página de inicio del proyecto en Google Cloud, o el número con el que empieza tu
 `GOOGLE_CLIENT_ID`). Úsala abajo como `API_URL`; si al desplegar sale otra, corrige el archivo y
 aplica con 7.3.
@@ -152,8 +152,8 @@ también):
 DATABASE_URL: "postgresql+psycopg://postgres.abcdefghijkl:TU_PASSWORD@aws-0-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=require"
 SECRET_KEY: "TU_SECRET_KEY"
 GOOGLE_CLIENT_ID: "TU_GOOGLE_CLIENT_ID"
-CORS_ORIGINS: '[vieja url expuesta]'
-FRONTEND_URL: "[vieja url expuesta]"
+CORS_ORIGINS: '["https://hourlify-api-NÚMERO.europe-west1.run.app"]'
+FRONTEND_URL: "https://hourlify-api-NÚMERO.europe-west1.run.app"
 COOKIE_SECURE: "true"
 COOKIE_SAMESITE: "lax"
 ADMIN_EMAILS: '["tu-email@ejemplo.com"]'
@@ -195,7 +195,7 @@ Debe responder `{"status":"ok"}`. Para ver que se crearon las tablas:
 ```bash
 gcloud run services logs read hourlify-api --region europe-west1 --limit 50
 ```
-Deben aparecer las líneas `Running upgrade … -> gg184321nf, acceso por proyecto`. Abre
+Deben aparecer las líneas `Running upgrade … -> e000194eb176, acceso por proyecto`. Abre
 `API_URL` en el navegador: debe salir el login de Hourli-fy. En Supabase,
 **Table Editor** mostrará las tablas (`users`, `workspaces`, …).
 
@@ -212,7 +212,7 @@ Antes aquí se conectaba Cloudflare con la API. Con todo en Cloud Run no hace fa
 1. <https://console.cloud.google.com> → **APIs y servicios → Credenciales** → tu *ID de cliente
    de OAuth 2.0* (tipo Aplicación web).
 2. En **Orígenes de JavaScript autorizados** → *Añadir URI* → tu `API_URL`
-   (`[vieja url expuesta]`, sin barra final). Deja también `http://localhost:5173` para
+   (`https://hourlify-api-NÚMERO.europe-west1.run.app`, sin barra final). Deja también `http://localhost:5173` para
    seguir desarrollando. **No** hacen falta *URIs de redireccionamiento*. **Guardar**. Puede
    tardar unos minutos en aplicarse.
 3. **Antes de publicar la app**, rellena los `[PLACEHOLDERS]` de la página de privacidad
@@ -299,10 +299,9 @@ Gratis: dura menos de 1 minuto al día (el plan gratuito de GitHub da 2.000 minu
 copia ocupa poco.
 
 ### 8.1 Activarlo (una vez)
-0. **Rama por defecto = `master`.** GitHub solo ejecuta los workflows programados (y solo muestra
-   el botón *Run workflow*) desde la rama por defecto, y en el repo sigue siendo `main` (la del
-   commit inicial). GitHub → repo → **Settings → General → Default branch** → icono ⇄ → `master`
-   → *Update* → confirmar. La rama `main` vieja puedes dejarla o borrarla; no se usa.
+0. **Rama por defecto = `main`.** GitHub solo ejecuta los workflows programados (y solo muestra
+   el botón *Run workflow*) desde la rama por defecto. Compruébalo en GitHub → repo → **Settings →
+   General → Default branch**.
 1. Prepara la URL de conexión **para pg_dump**: es tu `DATABASE_URL` **sin** `+psycopg`:
    ```
    postgresql://postgres.abcdefghijkl:TU_PASSWORD@aws-0-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=require
@@ -310,6 +309,9 @@ copia ocupa poco.
 2. Inventa una **frase de cifrado** larga (por ejemplo cuatro o cinco palabras al azar) y
    **guárdala en tu gestor de contraseñas**. Sin ella las copias no se pueden abrir: ni GitHub ni
    yo podemos recuperarla.
+   Al pegar la URL y la frase en GitHub, que no se cuele un salto de línea al final (pasa al
+   copiar de Cloud Shell). El workflow ya los quita, pero la frase que escribas al descifrar
+   tiene que ser exactamente la guardada.
 3. GitHub → repo `Hourli-fy` → **Settings → Secrets and variables → Actions → New repository
    secret**, dos veces:
 
@@ -351,6 +353,17 @@ Solo si se pierden datos. Se hace desde Cloud Shell (tiene `gpg` y Docker):
 4. Comprueba en Supabase → **Table Editor** que están los datos, y entra en la web.
 5. Borra los archivos de Cloud Shell: `rm copia.dump hourlify-*`.
 
+**Si restauras en una base de datos vacía** (un proyecto de Supabase nuevo, o tu Postgres local
+para probar la copia): antes del paso 3 crea la extensión `btree_gist`. Supabase guarda las
+extensiones en el esquema `extensions`, que la copia no incluye (solo `public`); sin ella falla la
+restricción `ex_time_entries_no_overlap` (*data type uuid has no default operator class for access
+method "gist"*) y la tabla queda sin la protección contra solapes. En Supabase → **SQL Editor**:
+```sql
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+```
+Y no dejes la copia descifrada (`copia.dump`) dentro del repo: lleva emails y hashes de
+contraseñas. El `.gitignore` ignora `*.dump` y `*.dump.gpg` por si acaso.
+
 > **Para más tranquilidad**: Supabase **Pro** (unos 25 $/mes) añade copias diarias automáticas
 > que se restauran con un clic. Con el plan gratuito, esta copia de GitHub es la red de seguridad.
 
@@ -360,7 +373,7 @@ Solo si se pierden datos. Se hace desde Cloud Shell (tiene `gpg` y Docker):
 
 - **Web y API van juntas**: en Cloud Shell:
   ```bash
-  cd ~/Hourli-fy && git pull
+  cd ~/Hourli-fy && git checkout main && git pull
   gcloud run deploy hourlify-api --source . --region europe-west1 \
     --allow-unauthenticated --env-vars-file ~/hourlify-env.yaml --memory 512Mi --max-instances 2
   ```
@@ -380,8 +393,8 @@ Si ya tenías la API en Cloud Run y la web en Cloudflare (el primer despliegue),
    ```
    Cambia `CORS_ORIGINS` y `FRONTEND_URL` a tu `API_URL` (sin barra final), p. ej.:
    ```yaml
-   CORS_ORIGINS: '[vieja url expuesta]'
-   FRONTEND_URL: "[vieja url expuesta]"
+   CORS_ORIGINS: '["https://hourlify-api-NÚMERO.europe-west1.run.app"]'
+   FRONTEND_URL: "https://hourlify-api-NÚMERO.europe-west1.run.app"
    ```
    Guarda (`Ctrl+O`, `Enter`, `Ctrl+X`).
 2. **Despliega desde la raíz** (ojo: `--source .`, ya no `backend`):

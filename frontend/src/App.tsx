@@ -1,5 +1,6 @@
 import { Link, Route, Routes } from 'react-router'
 import { TimerBar } from '@/components/entries/TimerBar'
+import { ThemeToggle } from '@/components/ThemeToggle'
 import { Button } from '@/components/ui/button'
 import { apiPost } from '@/lib/api'
 import { goToLogin, useMe } from '@/lib/auth'
@@ -64,6 +65,7 @@ function PrivateApp() {
           <Link to="/cuenta" className="text-sm text-muted-foreground hover:underline">
             {me.data.name}
           </Link>
+          <ThemeToggle />
           <Button variant="outline" size="sm" onClick={logout}>
             Salir
           </Button>
