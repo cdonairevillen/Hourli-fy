@@ -1254,6 +1254,79 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/entries/suggestions:
+    get:
+      tags:
+      - entries
+      summary: Task Suggestions
+      description: 'Autocompletar: las tareas que yo ya he hecho en ese proyecto,
+        sin repetir títulos (sin
+
+        distinguir mayúsculas), cada una con la label y sublabel de su último uso
+        y las más
+
+        recientes primero. Solo mis registros: lo que escriben los demás no se ve.'
+      operationId: task_suggestions_api_workspaces__wid__entries_suggestions_get
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: project_id
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      - name: q
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          description: Texto en el título
+          title: Q
+        description: Texto en el título
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 200
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskSuggestion'
+                title: Response Task Suggestions Api Workspaces  Wid  Entries Suggestions
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/entries/{entry_id}:
     patch:
       tags:
@@ -2339,6 +2412,34 @@ components:
       - name
       - archived
       title: SubcategoryRead
+    TaskSuggestion:
+      properties:
+        title:
+          type: string
+          title: Title
+        category_id:
+          type: string
+          format: uuid
+          title: Category Id
+        subcategory_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Subcategory Id
+        last_used_at:
+          type: string
+          format: date-time
+          title: Last Used At
+      type: object
+      required:
+      - title
+      - category_id
+      - subcategory_id
+      - last_used_at
+      title: TaskSuggestion
+      description: 'Una tarea ya hecha, para autocompletar: el título y la label/sublabel
+        de su último uso.'
     TimeEntryCreate:
       properties:
         project_id:

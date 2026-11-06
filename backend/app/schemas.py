@@ -240,6 +240,15 @@ class TimeEntryRead(BaseModel):
     duration_seconds: int | None
 
 
+class TaskSuggestion(BaseModel):
+    """Una tarea ya hecha, para autocompletar: el título y la label/sublabel de su último uso."""
+
+    title: str
+    category_id: uuid.UUID
+    subcategory_id: uuid.UUID | None
+    last_used_at: datetime
+
+
 # --- Panel del dueño (informes) ---
 
 

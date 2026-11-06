@@ -1,15 +1,17 @@
-import { useMutation } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { useId, useState } from 'react'
 import { LabelPicker } from '@/components/entries/LabelPicker'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { apiPost } from '@/lib/api'
+import { apiGet, apiPost } from '@/lib/api'
 import { useRefreshEntries } from '@/lib/entries'
 import { addDays, localToUtcIso, todayKey } from '@/lib/time'
-import type { Category, TimeEntry } from '@/lib/types'
+import type { Category, TaskSuggestion, TimeEntry } from '@/lib/types'
 
 // Nueva tarea en la hoja de un proyecto: nombre libre + label (+ sublabel), y luego
 // o se arranca el cronómetro o se apuntan a mano el día y las horas.
+// El nombre se autocompleta con mis tareas anteriores en el proyecto; al elegir una se ponen
+// también su label y sublabel.
 export function TaskForm({
   wid,
   projectId,
@@ -28,6 +30,32 @@ export function TaskForm({
   const [day, setDay] = useState(todayKey)
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')
+  const suggestionsId = useId()
+  // Bajo la clave ['entries', …]: tras guardar una tarea, useRefreshEntries la recarga también.
+  const suggestions = useQuery({
+    queryKey: ['entries', wid, 'suggestions', projectId],
+    queryFn: () =>
+      apiGet<TaskSuggestion[]>(`/workspaces/${wid}/entries/suggestions?project_id=${projectId}`),
+    enabled: !disabled,
+  })
+
+  // Al escribir o elegir exactamente una tarea anterior, se ponen su label y sublabel (si siguen
+  // activas; si la label se archivó, solo se aprovecha el nombre).
+  function changeTitle(value: string) {
+    setTitle(value)
+    const match = suggestions.data?.find((s) => s.title === value)
+    const category = match && categories.find((c) => c.id === match.category_id)
+    if (!match || !category) return
+    setCategoryId(category.id)
+    setSubcategoryId(category.subcategories.some((s) => s.id === match.subcategory_id) ? match.subcategory_id : null)
+  }
+
+  function labelOf(suggestion: TaskSuggestion): string {
+    const category = categories.find((c) => c.id === suggestion.category_id)
+    const subcategory = category?.subcategories.find((s) => s.id === suggestion.subcategory_id)
+    if (!category) return ''
+    return subcategory ? `${category.name} › ${subcategory.name}` : category.name
+  }
 
   const task = {
     project_id: projectId,
@@ -68,9 +96,18 @@ export function TaskForm({
         value={title}
         maxLength={200}
         placeholder="¿En qué has trabajado? (p. ej. Animaciones de personajes Pepe y Juan)"
-        onChange={(event) => setTitle(event.target.value)}
+        onChange={(event) => changeTitle(event.target.value)}
         disabled={disabled}
+        list={suggestionsId}
+        // Sin el autocompletado propio del navegador: se solaparía con el nuestro.
+        autoComplete="off"
       />
+      {/* datalist: el navegador muestra y filtra la lista mientras se escribe. */}
+      <datalist id={suggestionsId}>
+        {suggestions.data?.map((s) => (
+          <option key={s.title} value={s.title} label={labelOf(s)} />
+        ))}
+      </datalist>
       <LabelPicker
         categories={categories}
         categoryId={categoryId}

@@ -77,6 +77,7 @@ espacio, sus rutas responden 404 (no 403) para no revelar que existe.
 | PATCH | `/api/workspaces/{wid}/categories/{cid}/subcategories/{sid}` | Renombrar, archivar/desarchivar sublabel | Dueño |
 
 | GET | `/api/workspaces/{wid}/entries?from=&to=&project_id=` | Mis registros (días en hora de España, ambos incluidos) | Miembro |
+| GET | `/api/workspaces/{wid}/entries/suggestions?project_id=&q=&limit=` | Autocompletar: mis tareas anteriores en ese proyecto, sin repetir título, con la label/sublabel de su último uso | Miembro |
 | POST | `/api/workspaces/{wid}/entries` | Registro manual (inicio y fin con zona horaria) | Miembro |
 | PATCH | `/api/entries/{id}` | Editar un registro propio | Propio |
 | DELETE | `/api/entries/{id}` | Borrar un registro propio (o descartar el cronómetro) | Propio |

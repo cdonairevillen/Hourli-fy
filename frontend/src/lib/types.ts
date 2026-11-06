@@ -82,6 +82,14 @@ export type Category = {
   subcategories: Subcategory[]
 }
 
+// Una tarea ya hecha por mí en un proyecto (autocompletar): título y label/sublabel de su último uso.
+export type TaskSuggestion = {
+  title: string
+  category_id: string
+  subcategory_id: string | null
+  last_used_at: string
+}
+
 // Una tarea registrada. end_at null = cronómetro en marcha.
 export type TimeEntry = {
   id: string

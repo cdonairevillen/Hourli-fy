@@ -14,6 +14,8 @@ Detalle, plan y decisiones en [CHANGELOG-fase-9.md](CHANGELOG-fase-9.md). Desde 
   elección, sigue al sistema.
 - **Paso 3 · Periodos de 14 días**: bloques seguidos desde el sábado 7-nov-2026 en vez de
   quincenas A/B; `period=AAAA-MM-DD`. Panel y Mi hoja con "2 semanas".
+- **Paso 4 · Autocompletar**: al escribir una tarea se sugieren las mías anteriores en ese
+  proyecto; al elegir una se ponen su label y sublabel.
 
 ## 2026-10-10 · master · Despliegue: la web pasa a Cloud Run (sin Cloudflare)
 

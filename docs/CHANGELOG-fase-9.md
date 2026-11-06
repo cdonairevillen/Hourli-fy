@@ -10,7 +10,7 @@ changelog general está en [CHANGELOG.md](CHANGELOG.md).
 | 1 | Primeras copias de seguridad de la BD | Activar el workflow que ya existía y probar a restaurar | ✅ Hecho |
 | 2 | Modo oscuro con interruptor | Preferencia guardada en el navegador; la primera vez sigue al sistema | ✅ Hecho |
 | 3 | Periodos de 14 días en vez de quincenas A/B | Bloques seguidos de 14 días contados desde el **sábado 7-nov-2026** | ✅ Hecho |
-| 4 | Autocompletar al escribir una tarea | Tareas del propio trabajador en ese proyecto; rellena también label y sublabel | Pendiente |
+| 4 | Autocompletar al escribir una tarea | Tareas del propio trabajador en ese proyecto; rellena también label y sublabel | ✅ Hecho |
 | 5 | Ventanita flotante con el cronómetro | Picture-in-Picture en Chrome/Edge, ventana emergente en el resto, y tiempo en la pestaña | Pendiente |
 | 6 | Desplegar y comprobar en producción | — | Pendiente |
 
@@ -184,3 +184,61 @@ Archivos:
   `frontend/src/components/entries/TimesheetCard.tsx`, `frontend/src/pages/WorkspacePage.tsx`
 - docs: `CLAUDE.md`, `README.md`, `backend/README.md`, `frontend/README.md`,
   `specs/api/openapi.yaml`, `docs/CHANGELOG-fase-9.md`, `docs/CHANGELOG.md`
+
+## Paso 4 · Autocompletar al escribir una tarea
+
+### Cómo funciona
+- **Mientras escribes el nombre de una tarea** en la hoja de un proyecto, aparece una lista con las
+  tareas que **tú** ya has hecho en **ese proyecto**. Al lado de cada una se ve su label
+  ("Acto 1 › Personajes").
+- **Al elegir una se rellenan también su label y su sublabel**, las de la última vez que la usaste.
+  Si esa label o sublabel se ha archivado, solo se aprovecha el nombre (o se queda sin sublabel).
+- **Los títulos no se repiten** aunque cambien las mayúsculas ("Reunión" y "reunión" salen una
+  vez, con la forma más reciente). Salen primero los más recientes, hasta 50.
+- **Lo que escriben los demás no se ve** (decisión del autor): las sugerencias son solo tuyas.
+- **Tras guardar una tarea, la lista se actualiza sola.**
+
+### Por qué así
+- **Una ruta nueva y no la lista de registros que ya había**: esa lista trae todos los registros
+  con fechas; para sugerir solo hacen falta los títulos distintos. Postgres los saca de una vez con
+  `DISTINCT ON (lower(title))`, quedándose con la fila más reciente de cada título.
+- **`<datalist>` del navegador** en vez de un desplegable hecho a mano: el navegador ya filtra
+  mientras se escribe, se maneja con el teclado, funciona en el móvil y sigue el modo oscuro. Se
+  pide la lista una vez por proyecto, no en cada tecla. El precio es que el aspecto de la lista lo
+  decide cada navegador. Si un día se quiere otro diseño, la ruta ya admite `q` para filtrar en el
+  servidor.
+- `autoComplete="off"` quita el autocompletado propio del navegador, que se mezclaría con este.
+
+### Cambios
+- **backend**:
+  - `GET /api/workspaces/{wid}/entries/suggestions?project_id=&q=&limit=` en `api/entries.py`.
+    `project_id` es obligatorio; un proyecto sin acceso o un espacio ajeno da 404.
+  - Esquema `TaskSuggestion` en `schemas.py`.
+- **tests**: `tests/test_suggestions.py` (4 tests nuevos):
+  - sin repetir, con mayúsculas distintas y la label del último uso;
+  - solo las mías y solo de ese proyecto;
+  - filtro `q` (el `%` se busca literal) y `limit`;
+  - 404 sin acceso o desde fuera, y 422 sin `project_id`.
+  - **175 tests en verde.** `ruff check` y `ruff format` limpios: la línea larga de `api/reports.py`
+    del paso 3 ya está corregida.
+- **frontend**:
+  - `components/entries/TaskForm.tsx`: el `datalist` y el relleno de label/sublabel.
+  - `lib/types.ts`: tipo `TaskSuggestion`.
+  - Lint y build en verde.
+- **docs**: `backend/README.md` (tabla de rutas), `README.md` y `specs/api/openapi.yaml`
+  regenerado.
+
+### Commit propuesto
+```
+tareas: autocompletar el nombre con mis tareas anteriores del proyecto
+
+- GET /workspaces/{wid}/entries/suggestions (DISTINCT ON por título, label del último uso)
+- TaskForm: datalist y relleno de label/sublabel al elegir
+- 4 tests nuevos; ruff format de api/reports.py
+```
+Archivos:
+- backend: `backend/app/api/entries.py`, `backend/app/api/reports.py`, `backend/app/schemas.py`
+- tests: `backend/tests/test_suggestions.py`
+- frontend: `frontend/src/components/entries/TaskForm.tsx`, `frontend/src/lib/types.ts`
+- docs: `backend/README.md`, `README.md`, `specs/api/openapi.yaml`, `docs/CHANGELOG-fase-9.md`,
+  `docs/CHANGELOG.md`

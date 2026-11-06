@@ -9,13 +9,20 @@ from datetime import date, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.api.deps import CurrentUser, MemberAccess, SessionDep
 from app.models import Membership, TimeEntry, User, Workspace
 from app.models.common import utc_now
-from app.schemas import TimeEntryCreate, TimeEntryRead, TimeEntryUpdate, TimerStart
-from app.services.access import accessible_project_ids
+from app.schemas import (
+    TaskSuggestion,
+    TimeEntryCreate,
+    TimeEntryRead,
+    TimeEntryUpdate,
+    TimerStart,
+)
+from app.services.access import accessible_project_ids, ensure_project_access
 from app.services.entries import (
     entry_read,
     find_running,
@@ -90,6 +97,47 @@ def list_my_entries(
         query = query.where(TimeEntry.project_id == project_id)
     entries = session.exec(query.order_by(TimeEntry.start_at.desc())).all()
     return [entry_read(entry) for entry in entries]
+
+
+@router.get("/workspaces/{wid}/entries/suggestions")
+def task_suggestions(
+    session: SessionDep,
+    access: MemberAccess,
+    project_id: uuid.UUID,
+    q: Annotated[str | None, Query(max_length=200, description="Texto en el título")] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> list[TaskSuggestion]:
+    """Autocompletar: las tareas que yo ya he hecho en ese proyecto, sin repetir títulos (sin
+    distinguir mayúsculas), cada una con la label y sublabel de su último uso y las más
+    recientes primero. Solo mis registros: lo que escriben los demás no se ve."""
+    ensure_project_access(session, access.workspace, access.membership, project_id)
+    title_key = func.lower(TimeEntry.title)
+    query = select(
+        TimeEntry.title, TimeEntry.category_id, TimeEntry.subcategory_id, TimeEntry.start_at
+    ).where(
+        TimeEntry.workspace_id == access.workspace.id,
+        TimeEntry.user_id == access.user.id,
+        TimeEntry.project_id == project_id,
+    )
+    if q and q.strip():
+        # autoescape: un "%" o "_" escrito se busca tal cual, no como comodín.
+        query = query.where(TimeEntry.title.icontains(q.strip(), autoescape=True))
+    # DISTINCT ON (Postgres): de cada título, solo la fila más reciente.
+    latest = query.distinct(title_key).order_by(title_key, TimeEntry.start_at.desc()).subquery()
+    rows = session.exec(
+        select(latest.c.title, latest.c.category_id, latest.c.subcategory_id, latest.c.start_at)
+        .order_by(latest.c.start_at.desc())
+        .limit(limit)
+    ).all()
+    return [
+        TaskSuggestion(
+            title=row.title,
+            category_id=row.category_id,
+            subcategory_id=row.subcategory_id,
+            last_used_at=row.start_at,
+        )
+        for row in rows
+    ]
 
 
 @router.post("/workspaces/{wid}/entries", status_code=status.HTTP_201_CREATED)
