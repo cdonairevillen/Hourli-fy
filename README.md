@@ -5,7 +5,7 @@ Cualquiera se registra con su email (Gmail, Hotmail, Outlook, el que use) y una 
 entra con Google; crea **espacios** aislados (un estudio, una
 producción, un equipo) e invita a su gente con un link. Dentro de cada espacio, los miembros
 apuntan en qué han trabajado (con cronómetro o a mano) en la **hoja de cada proyecto**, y el
-dueño del espacio ve en su **panel** los totales quincenales de todo el equipo, con filtros y
+dueño del espacio ve en su **panel** los totales por periodos de 14 días de todo el equipo, con filtros y
 gráficas.
 
 Es un **registro**, no un sistema de nóminas: no hay aprobaciones, cierres de periodo ni
@@ -57,9 +57,9 @@ exportaciones.
    - apuntas **a mano** el día y las horas de inicio y fin.
 
    Lo que registras ahí queda ligado a ese proyecto; no hay que elegirlo.
-5. **Revisar tus horas** (pestaña *Mi hoja*): una hoja de cálculo de tu semana o tu quincena,
+5. **Revisar tus horas** (pestaña *Mi hoja*): una hoja de cálculo de tu semana o tu periodo de 14 días,
    con proyectos y labels en filas, días en columnas y totales.
-6. **El dueño consulta el panel** (pestaña *Panel*): total de horas del equipo por quincena o
+6. **El dueño consulta el panel** (pestaña *Panel*): total de horas del equipo por periodo de 14 días o
    rango de fechas, filtrable por persona, proyecto, label, sublabel y texto de la tarea; con la
    gráfica de horas por día, el reparto por persona, proyecto y label, y la lista de tareas.
 7. **Mi cuenta**: tus datos, **cambiar o poner contraseña** y **eliminar la cuenta**. Más
@@ -77,7 +77,7 @@ exportaciones.
 | Sublabel | `subcategories` (subtipología) | Concreta una label: "Acto 1 › Personajes 3D". Opcional. |
 | Tarea | `time_entries` (registro) | Nombre libre + label (+ sublabel) + inicio y fin, dentro de un proyecto. |
 | Cronómetro | `time_entries` con `end_at` vacío | Tarea en marcha. Uno por persona, en todos sus espacios. |
-| Quincena A / B | `period=2026-10-A` | A = días 1–15; B = del 16 al último día del mes. |
+| Periodo (2 semanas) | `period=2026-11-07` | 14 días seguidos contados desde el sábado 7-nov-2026; `period` es cualquier día del periodo. |
 
 ## Quién puede hacer qué
 
@@ -87,7 +87,7 @@ Los roles son **por espacio**: puedes ser dueño de uno y miembro de otro.
 | --- | --- | --- |
 | Ver proyectos y labels | Los suyos* | Todos |
 | Registrar, editar y borrar **sus propias** tareas; cronómetro | Sí | Sí |
-| Ver su hoja (semana / quincena) | Sí | Sí |
+| Ver su hoja (semana / 2 semanas) | Sí | Sí |
 | Salir del espacio | Sí | No (antes transfiere o archiva) |
 | Crear, renombrar y archivar proyectos, labels y sublabels | No | Sí |
 | Crear y revocar links de invitación (al espacio o a un proyecto) | No | Sí |
@@ -173,7 +173,7 @@ flowchart LR
 | `services/access.py` | Acceso a proyectos: quién ve qué proyecto del espacio (`all_projects` o `project_members`), y dar o quitar accesos. |
 | `services/workspaces.py` | Límite de 5 espacios propios (con `SELECT … FOR UPDATE` para que dos peticiones a la vez no lo salten) y estado de un link (`active`, `expired`, `revoked`, `exhausted`, `archived`). |
 | `services/entries.py` | Reglas de las tareas: que proyecto, label y sublabel sean del espacio y no estén archivados; fin > inicio y ≤ 24 h; traducción de los errores de la BD (solapes, segundo cronómetro) a mensajes claros; parar el cronómetro (cortado a 24 h si se olvidó). Los días se calculan en hora de España. |
-| `services/reports.py` | Filtros del panel: de `period=AAAA-MM-A/B` o `from`/`to` (por defecto, la quincena actual) a las condiciones SQL; búsqueda en el título sin distinguir mayúsculas y sin comodines. |
+| `services/reports.py` | Filtros del panel: de `period=AAAA-MM-DD` (el periodo de 14 días que contiene ese día) o `from`/`to` (por defecto, el periodo actual) a las condiciones SQL; búsqueda en el título sin distinguir mayúsculas y sin comodines. |
 | `services/passwords.py` | Registro (409 si el email ya tiene cuenta), login con mensaje genérico, links de recuperación (1 h, un solo uso, solo su hash en la BD) y cambio de contraseña. |
 | `services/email.py` | Envío de emails: `console` (local) o `resend`. Es una dependencia que los tests sustituyen para leer el link enviado. |
 | `services/rate_limit.py` | Freno a la fuerza bruta en memoria: 10 intentos de login cada 15 min por IP + email, y 3 emails de recuperación por hora. |
@@ -212,7 +212,7 @@ Fuera de `app/`:
 | `components/NativeSelect.tsx` y `components/ui/` | Desplegable nativo con estilo de `Input`, y los componentes de shadcn (`button`, `card`, `input`, `badge`). |
 | `lib/api.ts` | `apiGet` / `apiPost` / `apiPatch` / `apiDelete`: `fetch` a `/api` con la cookie; `ApiError` lleva el código y el mensaje de FastAPI para mostrarlo tal cual. |
 | `lib/auth.ts` | `useMe()`: el usuario de la sesión o `null`. |
-| `lib/time.ts` | Fechas **siempre en hora de España**, aunque el navegador esté en otra zona: días `AAAA-MM-DD`, semanas, quincenas, duraciones y "día + hora local → UTC" con el cambio de hora. |
+| `lib/time.ts` | Fechas **siempre en hora de España**, aunque el navegador esté en otra zona: días `AAAA-MM-DD`, semanas, periodos de 14 días, duraciones y "día + hora local → UTC" con el cambio de hora. |
 | `lib/catalog.ts` | `useCatalog()`: proyectos y labels del espacio (archivados incluidos) con búsqueda por id y el texto "Label › Sublabel". |
 | `lib/entries.ts` | `useCurrentTimer()`, `useNow()` (reloj que avanza cada segundo) y el refresco de datos tras cada cambio. |
 | `lib/reports.ts`, `lib/types.ts` | Tipos de las respuestas de la API (espejo de `backend/app/schemas.py`). |
@@ -272,7 +272,7 @@ Todas las fechas se guardan en **UTC** (`timestamptz`) y se muestran en **Europe
 - **Tareas**: un cronómetro por persona (al arrancar otro, el anterior se para); sin solapes entre
   tus tareas, aunque sean de espacios distintos; máximo 24 h (un cronómetro olvidado se corta a
   las 24 h al pararlo).
-- **Días y quincenas**: una tarea cuenta en el día (de España) en que **empieza**.
+- **Días y periodos**: una tarea cuenta en el día (de España) en que **empieza**.
 - **Panel**: solo cuentan las tareas terminadas; las horas de quien ya no es miembro siguen contando.
 - **Eliminar la cuenta**: antes hay que transferir o archivar los espacios propios activos; los
   datos personales se anonimizan y las horas quedan como "Usuario eliminado".

@@ -29,7 +29,7 @@ function formatDate(value: string) {
 }
 
 // Un espacio en pestañas: "Proyectos" (entrada a la hoja de cada uno), "Mi hoja" (mis horas
-// por semana/quincena), "Panel" (horas de todo el equipo; solo el dueño), "Catálogo" (proyectos
+// por semana/periodo de 14 días), "Panel" (horas de todo el equipo; solo el dueño), "Catálogo" (proyectos
 // y labels) y "Equipo" (ajustes, miembros e invitaciones). Lo del dueño se oculta a los miembros.
 export function WorkspacePage({
   tab,

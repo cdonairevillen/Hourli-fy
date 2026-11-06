@@ -86,8 +86,8 @@ espacio, sus rutas responden 404 (no 403) para no revelar que existe.
 | GET | `/api/workspaces/{wid}/reports/summary` | Panel: total y desglose por persona, proyecto, label y día | Dueño |
 | GET | `/api/workspaces/{wid}/reports/entries?limit=&offset=` | Panel: tareas que cumplen los filtros, paginadas | Dueño |
 
-Filtros del panel (comunes a las dos rutas): `period=AAAA-MM-A|B` **o** `from` + `to` (por defecto,
-la quincena actual), `user_id`, `project_id`, `category_id`, `subcategory_id` y `q` (texto en el
+Filtros del panel (comunes a las dos rutas): `period=AAAA-MM-DD` (el periodo de 14 días que
+contiene ese día) **o** `from` + `to` (por defecto, el periodo actual), `user_id`, `project_id`, `category_id`, `subcategory_id` y `q` (texto en el
 título, sin distinguir mayúsculas).
 
 En el código las labels son `categories` (tipologías) y las sublabels `subcategories`.

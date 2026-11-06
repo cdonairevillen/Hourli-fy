@@ -47,7 +47,7 @@ def test_sus_horas_siguen_en_el_panel_sin_nombre(make_client):
 
     bea.delete("/api/auth/me")
     summary = ana.get(
-        f"/api/workspaces/{ws['wid']}/reports/summary", params={"period": "2026-10-A"}
+        f"/api/workspaces/{ws['wid']}/reports/summary", params={"period": "2026-10-05"}
     ).json()
 
     assert [(u["name"], u["total_seconds"]) for u in summary["by_user"]] == [

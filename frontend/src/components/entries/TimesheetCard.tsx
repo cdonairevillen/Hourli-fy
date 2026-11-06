@@ -18,7 +18,7 @@ import type { TimeEntry, Workspace } from '@/lib/types'
 
 type Mode = 'week' | 'fortnight'
 
-// "Mi hoja": mis horas del espacio en una semana o una quincena, como una hoja de cálculo.
+// "Mi hoja": mis horas del espacio en una semana o un periodo de 14 días, como una hoja de cálculo.
 // Filas = proyecto + label; columnas = días. Solo lectura: se edita desde cada proyecto.
 export function TimesheetCard({ workspace }: { workspace: Workspace }) {
   const [mode, setMode] = useState<Mode>('fortnight')
@@ -64,7 +64,7 @@ export function TimesheetCard({ workspace }: { workspace: Workspace }) {
       <CardContent className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant={mode === 'fortnight' ? 'default' : 'outline'} onClick={() => setMode('fortnight')}>
-            Quincena
+            2 semanas
           </Button>
           <Button size="sm" variant={mode === 'week' ? 'default' : 'outline'} onClick={() => setMode('week')}>
             Semana

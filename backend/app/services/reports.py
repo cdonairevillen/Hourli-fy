@@ -1,7 +1,5 @@
 """Filtros del panel: de los parámetros de la URL a las condiciones del WHERE."""
 
-import calendar
-import re
 import uuid
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -13,42 +11,44 @@ from app.models import TimeEntry
 from app.models.common import utc_now
 from app.services.entries import LOCAL_TZ, local_day_start
 
-PERIOD_PATTERN = re.compile(r"^(\d{4})-(\d{2})-([AB])$")
+# Periodos de 14 días seguidos, contados desde este sábado (hacia delante y hacia atrás): no
+# dependen del mes, así que ningún día queda fuera. Misma fecha en frontend/src/lib/time.ts.
+PERIOD_START = date(2026, 11, 7)
+PERIOD_DAYS = 14
 
 
-def fortnight_range(year: int, month: int, half: str) -> tuple[date, date]:
-    """Quincena A = días 1–15; B = del 16 al último día del mes."""
-    if half == "A":
-        return date(year, month, 1), date(year, month, 15)
-    last_day = calendar.monthrange(year, month)[1]
-    return date(year, month, 16), date(year, month, last_day)
+def period_containing(day: date) -> tuple[date, date]:
+    """El periodo de 14 días que contiene ese día (primer y último día, ambos incluidos)."""
+    # // redondea hacia abajo también con negativos: los días anteriores a PERIOD_START caen en
+    # los periodos de antes, no en el primero.
+    index = (day - PERIOD_START).days // PERIOD_DAYS
+    start = PERIOD_START + timedelta(days=index * PERIOD_DAYS)
+    return start, start + timedelta(days=PERIOD_DAYS - 1)
 
 
-def current_fortnight() -> tuple[date, date]:
-    today = utc_now().astimezone(LOCAL_TZ).date()
-    return fortnight_range(today.year, today.month, "A" if today.day <= 15 else "B")
+def current_period() -> tuple[date, date]:
+    return period_containing(utc_now().astimezone(LOCAL_TZ).date())
 
 
 def resolve_period(
     period: str | None, from_date: date | None, to_date: date | None
 ) -> tuple[date, date]:
-    """`period=2026-10-A` o `from`/`to`; sin nada, la quincena actual."""
+    """`period=AAAA-MM-DD` (el periodo de 14 días que contiene ese día) o `from`/`to`; sin
+    nada, el periodo actual."""
     if period is not None:
         if from_date is not None or to_date is not None:
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_CONTENT, "Usa period o from/to, no los dos"
             )
-        match = PERIOD_PATTERN.match(period)
-        if match is None:
+        try:
+            day = date.fromisoformat(period)
+        except ValueError:
             raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_CONTENT, "period debe ser AAAA-MM-A o AAAA-MM-B"
-            )
-        year, month, half = int(match[1]), int(match[2]), match[3]
-        if not 1 <= month <= 12:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Mes no válido")
-        return fortnight_range(year, month, half)
+                status.HTTP_422_UNPROCESSABLE_CONTENT, "period debe ser una fecha AAAA-MM-DD"
+            ) from None
+        return period_containing(day)
     if from_date is None and to_date is None:
-        return current_fortnight()
+        return current_period()
     if from_date is None or to_date is None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, "Indica from y to (o ninguno de los dos)"
@@ -74,7 +74,7 @@ class ReportFilters:
         """El WHERE dinámico: solo se añade lo que llega.
 
         Solo cuentan registros terminados: el cronómetro en marcha aún no tiene duración.
-        Un registro cuenta en el día en que empieza (regla de las quincenas).
+        Un registro cuenta en el día en que empieza (regla de los periodos).
         """
         where: list[ColumnElement[bool]] = [
             TimeEntry.workspace_id == workspace_id,

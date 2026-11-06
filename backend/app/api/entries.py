@@ -72,7 +72,7 @@ def list_my_entries(
     primero.
 
     `from` y `to` son días (AAAA-MM-DD, ambos incluidos) en hora de España. Un registro cuenta
-    en el día en que empieza, igual que en las quincenas.
+    en el día en que empieza, igual que en los periodos del panel.
     """
     allowed = accessible_project_ids(session, access.workspace, access.membership)
     if project_id is not None and allowed is not None and project_id not in allowed:

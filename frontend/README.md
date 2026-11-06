@@ -31,7 +31,7 @@ src/
 │   ├── api.ts          apiGet/apiPost/apiPatch/apiDelete con cookies; ApiError con el detail de FastAPI
 │   ├── auth.ts         useMe(): usuario de la sesión o null
 │   ├── types.ts        tipos de las respuestas (espejo de backend/app/schemas.py)
-│   ├── time.ts         fechas en hora de España (dayKey 'AAAA-MM-DD', semanas, quincenas, local → UTC)
+│   ├── time.ts         fechas en hora de España (dayKey 'AAAA-MM-DD', semanas, periodos de 14 días, local → UTC)
 │   ├── catalog.ts      useCatalog(): proyectos y labels con búsqueda por id
 │   ├── entries.ts      useCurrentTimer(), useNow() y refresco tras cambios
 │   ├── reports.ts      tipos del panel

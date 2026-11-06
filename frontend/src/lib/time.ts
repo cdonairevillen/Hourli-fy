@@ -120,16 +120,20 @@ export function weekOf(key: string): Period {
   return { from, to, label: `Semana del ${formatDay(from, { weekday: undefined })}` }
 }
 
-// Quincena A (días 1–15) o B (16–fin de mes) que contiene ese día.
+// Periodos de 14 días seguidos contados desde este sábado, hacia delante y hacia atrás (no
+// dependen del mes: ningún día queda fuera). Misma fecha que PERIOD_START en el backend.
+export const PERIOD_START = '2026-11-07'
+
+// El periodo de 14 días ("fortnight") que contiene ese día.
 export function fortnightOf(key: string): Period {
-  const [year, month, day] = key.split('-').map(Number)
-  const prefix = key.slice(0, 7)
-  const monthName = keyToUtcNoon(key).toLocaleDateString('es-ES', {
-    timeZone: 'UTC',
-    month: 'long',
-    year: 'numeric',
-  })
-  if (day <= 15) return { from: `${prefix}-01`, to: `${prefix}-15`, label: `Quincena A · ${monthName}` }
-  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate()
-  return { from: `${prefix}-16`, to: `${prefix}-${lastDay}`, label: `Quincena B · ${monthName}` }
+  const days = Math.round((keyToUtcNoon(key).getTime() - keyToUtcNoon(PERIOD_START).getTime()) / 86_400_000)
+  // Math.floor redondea hacia abajo también con negativos: los días anteriores a PERIOD_START
+  // caen en los periodos de antes.
+  const from = addDays(PERIOD_START, Math.floor(days / 14) * 14)
+  const to = addDays(from, 13)
+  return {
+    from,
+    to,
+    label: `${formatDay(from, { weekday: undefined })} – ${formatDay(to, { weekday: undefined, year: 'numeric' })}`,
+  }
 }

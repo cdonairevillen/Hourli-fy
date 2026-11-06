@@ -183,7 +183,7 @@ def test_quitar_acceso_mantiene_sus_horas_en_el_panel(make_client):
         json={"all_projects": False, "project_ids": [ws["cervantes"]]},
     )
     summary = ana.get(
-        f"/api/workspaces/{ws['wid']}/reports/summary", params={"period": "2026-10-A"}
+        f"/api/workspaces/{ws['wid']}/reports/summary", params={"period": "2026-10-05"}
     ).json()
 
     assert summary["total_seconds"] == 3600

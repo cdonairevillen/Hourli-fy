@@ -12,6 +12,8 @@ Detalle, plan y decisiones en [CHANGELOG-fase-9.md](CHANGELOG-fase-9.md). Desde 
   los secretos, `.gitignore` ignora las copias y la guía explica cómo restaurar en una BD vacía.
 - **Paso 2 · Modo oscuro**: botón luna/sol en la cabecera; se recuerda en el navegador y, sin
   elección, sigue al sistema.
+- **Paso 3 · Periodos de 14 días**: bloques seguidos desde el sábado 7-nov-2026 en vez de
+  quincenas A/B; `period=AAAA-MM-DD`. Panel y Mi hoja con "2 semanas".
 
 ## 2026-10-10 · master · Despliegue: la web pasa a Cloud Run (sin Cloudflare)
 

@@ -13,7 +13,7 @@ import type { Member, Workspace } from '@/lib/types'
 
 const PAGE_SIZE = 50
 
-// Panel del dueño: horas de todo el espacio con filtros. Quincena (o rango), trabajador,
+// Panel del dueño: horas de todo el espacio con filtros. Periodo de 14 días (o rango), trabajador,
 // proyecto, label, sublabel y búsqueda en el nombre de la tarea.
 export function ReportPanel({ workspace }: { workspace: Workspace }) {
   const wid = workspace.id
@@ -31,7 +31,7 @@ export function ReportPanel({ workspace }: { workspace: Workspace }) {
 
   const params = new URLSearchParams()
   if (mode === 'fortnight') {
-    params.set('period', `${anchor.slice(0, 7)}-${Number(anchor.slice(8)) <= 15 ? 'A' : 'B'}`)
+    params.set('period', fortnight.from)
   } else {
     params.set('from', range.from)
     params.set('to', range.to)
@@ -85,7 +85,7 @@ export function ReportPanel({ workspace }: { workspace: Workspace }) {
         <CardContent className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" variant={mode === 'fortnight' ? 'default' : 'outline'} onClick={() => setMode('fortnight')}>
-              Quincena
+              2 semanas
             </Button>
             <Button size="sm" variant={mode === 'range' ? 'default' : 'outline'} onClick={() => setMode('range')}>
               Rango de fechas

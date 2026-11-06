@@ -3,8 +3,8 @@
 Web de registro de horas (Hourli-fy). Cualquiera se registra con email y contraseña (o entra con
 Google) y crea espacios aislados (un estudio, un equipo) a los que invita por link: al espacio
 entero o a un solo proyecto. Los miembros registran tiempo (manual o
-cronómetro) por proyecto, tipología y subtipología; el dueño del espacio ve totales quincenales
-de todos con filtros. Es un registro: no hay aprobaciones, cierres ni exportaciones.
+cronómetro) por proyecto, tipología y subtipología; el dueño del espacio ve totales por periodos
+de 14 días de todos con filtros. Es un registro: no hay aprobaciones, cierres ni exportaciones.
 
 Especificación completa: ver el doc "Registro de horas — Especificación y plan".
 
@@ -44,7 +44,8 @@ cd frontend && npm run lint && npm run build        # comprobar front
 - Fechas en UTC en BD; se muestran en Europe/Madrid.
 - Nada con registros se borra: se archiva (`archived = true`). Espacios y proyectos sin tareas
   sí se pueden borrar.
-- Quincenas: A = días 1–15, B = 16–fin de mes; cuenta el día de `start_at`.
+- Periodos de 14 días seguidos contados desde el sábado 7-nov-2026 (`PERIOD_START`, en
+  `services/reports.py` y `lib/time.ts`), sin depender del mes; cuenta el día de `start_at`.
 
 ## Convenciones
 

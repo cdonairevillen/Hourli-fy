@@ -13,7 +13,7 @@ from app.models.common import utc_now
 from app.schemas import TimeEntryRead
 
 MAX_DURATION = timedelta(hours=24)
-# Las fechas se guardan en UTC, pero los días (filtros, quincenas) son los de España.
+# Las fechas se guardan en UTC, pero los días (filtros, periodos) son los de España.
 LOCAL_TZ = ZoneInfo("Europe/Madrid")
 
 # Errores de la BD (por nombre de restricción) → respuesta clara para el usuario.

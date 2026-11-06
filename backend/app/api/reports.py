@@ -33,7 +33,7 @@ TOTAL = func.coalesce(func.sum(DURATION), 0)
 
 
 def get_report_filters(
-    period: Annotated[str | None, Query(description="Quincena: AAAA-MM-A o AAAA-MM-B")] = None,
+    period: Annotated[str | None, Query(description="Periodo de 14 días que contiene este día (AAAA-MM-DD)")] = None,
     from_date: Annotated[date | None, Query(alias="from")] = None,
     to_date: Annotated[date | None, Query(alias="to")] = None,
     user_id: uuid.UUID | None = None,

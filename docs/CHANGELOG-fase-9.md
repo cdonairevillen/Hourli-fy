@@ -8,8 +8,8 @@ changelog general está en [CHANGELOG.md](CHANGELOG.md).
 | # | Paso | Decisión | Estado |
 | --- | --- | --- | --- |
 | 1 | Primeras copias de seguridad de la BD | Activar el workflow que ya existía y probar a restaurar | ✅ Hecho |
-| 2 | Modo oscuro con interruptor | Preferencia guardada en el navegador; la primera vez sigue al sistema | ✅ Hecho (falta revisarlo a ojo) |
-| 3 | Periodos de 14 días en vez de quincenas A/B | Bloques seguidos de 14 días contados desde el **sábado 7-nov-2026** | Pendiente |
+| 2 | Modo oscuro con interruptor | Preferencia guardada en el navegador; la primera vez sigue al sistema | ✅ Hecho |
+| 3 | Periodos de 14 días en vez de quincenas A/B | Bloques seguidos de 14 días contados desde el **sábado 7-nov-2026** | ✅ Hecho |
 | 4 | Autocompletar al escribir una tarea | Tareas del propio trabajador en ese proyecto; rellena también label y sublabel | Pendiente |
 | 5 | Ventanita flotante con el cronómetro | Picture-in-Picture en Chrome/Edge, ventana emergente en el resto, y tiempo en la pestaña | Pendiente |
 | 6 | Desplegar y comprobar en producción | — | Pendiente |
@@ -106,3 +106,81 @@ front: modo oscuro con interruptor en la cabecera
 Archivos: `frontend/src/lib/theme.ts`, `frontend/src/components/ThemeToggle.tsx`,
 `frontend/src/App.tsx`, `frontend/index.html`, `frontend/src/index.css`,
 `docs/CHANGELOG-fase-9.md`, `docs/CHANGELOG.md`.
+
+## Paso 3 · Periodos de 14 días
+
+### La regla que cambia
+- **Antes**: quincenas pegadas al mes. A = días 1–15, B = del 16 al último día.
+- **Ahora**: bloques de **14 días seguidos** contados desde el **sábado 7-nov-2026**, hacia
+  delante y hacia atrás: 7–20 nov, 21 nov–4 dic, 5–18 dic… y antes, 24 oct–6 nov, 10–23 oct…
+  Cada bloque va de sábado a viernes. No dependen del mes, así que cruzan meses y años
+  (19 dic 2026 – 1 ene 2027) y ningún día queda fuera.
+- **No cambia**: una tarea cuenta en el día (de España) en que empieza. Los datos guardados no se
+  tocan: solo cambia cómo se agrupan al verlos.
+
+### Lo que hay que saber
+1. **La API cambia**: `period=2026-10-A` ya no vale (da 422). Ahora `period=AAAA-MM-DD` es
+   **cualquier día** del periodo y devuelve el bloque que lo contiene (`period=2026-11-12` →
+   7–20 nov). Sin `period` ni `from`/`to`, el periodo actual. Web y API se despliegan juntas, así
+   que no hay clientes con el formato viejo.
+2. **Los periodos antiguos ya no coinciden con el mes.** Para ver "octubre entero" o una quincena
+   antigua, usa *Rango de fechas* en el panel.
+3. **Mi hoja también** usa los mismos periodos (antes, quincenas), para que coincida con el panel.
+   El botón se llama ahora **"2 semanas"** en los dos sitios, y la etiqueta muestra las fechas
+   (*7 nov – 20 nov 2026*).
+4. **La fecha de inicio está en dos sitios**, que deben coincidir: `PERIOD_START` en
+   `backend/app/services/reports.py` y en `frontend/src/lib/time.ts`. Cambiarla mueve todos los
+   periodos, también los pasados.
+5. **Sobre el día 31**: con las quincenas no se perdía (la B llegaba al último día del mes). Con
+   los bloques seguidos la duda desaparece del todo.
+
+### Por qué así
+- La cuenta se hace con días enteros (`(día − inicio) // 14`, redondeando hacia abajo también con
+  negativos). Así no hay que guardar nada en la BD ni crear periodos a mano, y los anteriores al
+  7-nov salen solos.
+- `period` acepta cualquier día del bloque, y no solo el primero, para que pedir "el periodo de hoy"
+  sea simplemente `period=<hoy>`.
+
+### Cambios
+- **backend**:
+  - `services/reports.py`: `PERIOD_START`, `period_containing()` y `current_period()` sustituyen
+    a `fortnight_range()` y `current_fortnight()`; `resolve_period` acepta una fecha.
+  - `api/reports.py`: nueva descripción de `period`.
+  - Comentarios en `api/entries.py` y `services/entries.py`.
+- **tests**:
+  - `test_reports.py`: los tests de quincenas pasan a periodos.
+  - Test nuevo `test_periodos_de_14_dias_seguidos`: inicio, días anteriores, cruce de mes y año.
+  - El formato viejo da 422.
+  - El caso del límite pasa a 9/10-oct.
+  - `test_account.py` y `test_project_access.py` usan el nuevo formato.
+  - **171 tests en verde.**
+- **frontend**:
+  - `lib/time.ts`: `fortnightOf()` calcula el bloque de 14 días (*fortnight* = 14 noches, así
+    que el nombre sigue siendo correcto).
+  - `ReportPanel.tsx` envía `period=<inicio>`.
+  - Botón "2 semanas" en el panel y en Mi hoja.
+  - Comprobado: lint y build en verde; la función da los mismos bloques que el backend
+    (7-nov, 6-nov, 31-dic, cambios de hora).
+- **docs**:
+  - `CLAUDE.md`: regla de los periodos.
+  - `README.md`, `backend/README.md` y `frontend/README.md`.
+  - `specs/api/openapi.yaml` regenerado.
+  - Pendiente: la especificación (Claude Doc) sigue hablando de quincenas.
+
+### Commit propuesto
+```
+periodos: bloques de 14 días seguidos desde el 7-nov-2026 en vez de quincenas A/B
+
+- backend: period=AAAA-MM-DD (periodo que contiene ese día), tests adaptados y nuevos
+- front: panel y Mi hoja con periodos de 14 días ("2 semanas")
+- CLAUDE.md, README y openapi con la nueva regla
+```
+Archivos:
+- backend: `backend/app/services/reports.py`, `backend/app/api/reports.py`,
+  `backend/app/api/entries.py`, `backend/app/services/entries.py`
+- tests: `backend/tests/test_reports.py`, `backend/tests/test_account.py`,
+  `backend/tests/test_project_access.py`
+- frontend: `frontend/src/lib/time.ts`, `frontend/src/components/reports/ReportPanel.tsx`,
+  `frontend/src/components/entries/TimesheetCard.tsx`, `frontend/src/pages/WorkspacePage.tsx`
+- docs: `CLAUDE.md`, `README.md`, `backend/README.md`, `frontend/README.md`,
+  `specs/api/openapi.yaml`, `docs/CHANGELOG-fase-9.md`, `docs/CHANGELOG.md`

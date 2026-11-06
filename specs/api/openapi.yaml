@@ -1152,7 +1152,7 @@ paths:
         `from` y `to` son días (AAAA-MM-DD, ambos incluidos) en hora de España. Un
         registro cuenta
 
-        en el día en que empieza, igual que en las quincenas.'
+        en el día en que empieza, igual que en los periodos del panel.'
       operationId: list_my_entries_api_workspaces__wid__entries_get
       parameters:
       - name: wid
@@ -1463,9 +1463,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: 'Quincena: AAAA-MM-A o AAAA-MM-B'
+          description: Periodo de 14 días que contiene este día (AAAA-MM-DD)
           title: Period
-        description: 'Quincena: AAAA-MM-A o AAAA-MM-B'
+        description: Periodo de 14 días que contiene este día (AAAA-MM-DD)
       - name: from
         in: query
         required: false
@@ -1591,9 +1591,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: 'Quincena: AAAA-MM-A o AAAA-MM-B'
+          description: Periodo de 14 días que contiene este día (AAAA-MM-DD)
           title: Period
-        description: 'Quincena: AAAA-MM-A o AAAA-MM-B'
+        description: Periodo de 14 días que contiene este día (AAAA-MM-DD)
       - name: from
         in: query
         required: false
