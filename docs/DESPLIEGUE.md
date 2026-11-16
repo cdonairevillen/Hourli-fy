@@ -164,7 +164,8 @@ Guarda con `Ctrl+O`, `Enter`, y sal con `Ctrl+X`.
 - `CORS_ORIGINS` y `FRONTEND_URL` = tu `API_URL` (sin barra final): la web vive ahí también.
 - `COOKIE_SAMESITE` es `lax` (no `none`) porque la web y la API comparten dominio.
 - `EMAIL_BACKEND: "console"`: los emails de "recuperar contraseña" se escriben en los logs de
-  Cloud Run en vez de enviarse. Para enviarlos de verdad, ver el paso 7 (opcional).
+  Cloud Run en vez de enviarse, **y a los usuarios no les llega nada**. Para que lleguen de
+  verdad, configura Gmail (paso 6b, sin dominio) o Resend (paso 7.2, con dominio).
 - Este archivo se queda en Cloud Shell (que conserva tu carpeta personal). Guarda también una copia
   en tu gestor de contraseñas: Google borra la carpeta de Cloud Shell tras 120 días sin usarla.
 
@@ -242,8 +243,8 @@ Abre `API_URL` en una ventana normal (no la de desarrollo):
 - [ ] Panel del dueño: totales de la quincena y gráfica.
 - [ ] **Admin**: tu cuenta tiene que estar en `ADMIN_EMAILS` y **tener contraseña** (si entras con
       Google, ponla en *Mi cuenta*). Enlace **Admin** de la cabecera → login del panel.
-- [ ] **Recuperar contraseña** (con `EMAIL_BACKEND: "console"`): pídelo desde el login y busca el
-      link en los logs:
+- [ ] **Recuperar contraseña**: pídelo desde el login. Con Gmail (paso 6b) te llega el email; con
+      `EMAIL_BACKEND: "console"` no llega nada y el link está en los logs:
       ```bash
       gcloud run services logs read hourlify-api --region europe-west1 --limit 30
       ```
@@ -251,6 +252,34 @@ Abre `API_URL` en una ventana normal (no la de desarrollo):
 
 Si todo va, ya está desplegado. Falta solo activar las copias de seguridad (paso 8): **no lo
 saltes**.
+
+---
+
+## Paso 6b · Emails de recuperación con Gmail (sin dominio)
+
+Sin esto, "He olvidado mi contraseña" no manda nada (ver 3.3). Se envían desde una cuenta de
+Gmail por SMTP: gratis, unos 500 emails al día, y no hace falta dominio.
+
+1. En la cuenta de Gmail, activa la **verificación en 2 pasos** (Cuenta de Google → Seguridad). Sin
+   ella no deja crear contraseñas de aplicación.
+2. <https://myaccount.google.com/apppasswords> → nombre `Hourli-fy` → **Crear**. Copia la clave de
+   16 letras (sin espacios). Es una contraseña solo para enviar: se puede revocar ahí mismo
+   cuando quieras, sin tocar la de tu cuenta.
+3. En `~/hourlify-env.yaml` cambia `EMAIL_BACKEND` y añade (el remitente **tiene que ser** ese
+   mismo Gmail; si no, Gmail lo cambia o lo rechaza):
+   ```yaml
+   EMAIL_BACKEND: "smtp"
+   SMTP_USER: "tu-cuenta@gmail.com"
+   SMTP_PASSWORD: "abcdefghijklmnop"
+   EMAIL_FROM: "Hourli-fy <tu-cuenta@gmail.com>"
+   ```
+   (`SMTP_HOST` y `SMTP_PORT` ya valen `smtp.gmail.com` y `465` por defecto.) Aplica con 7.3.
+4. Prueba "He olvidado mi contraseña" con tu email. Si no llega (mira también spam), busca
+   `No se pudo enviar el email` en los logs: `535` = usuario o clave de aplicación mal.
+
+**Si aun así a alguien no le llega**: entra en `/admin` → *Usuarios* → su usuario → *Actions →
+Link de recuperación*. Te enseña un link (1 hora, un solo uso) para pasárselo por otro canal; la
+contraseña la elige él.
 
 ---
 
@@ -427,6 +456,7 @@ Después prueba el paso 6 entero. El proyecto de Cloudflare puedes borrarlo
 | La API devuelve 503 en `/api/auth/google` | Falta `GOOGLE_CLIENT_ID` en la API | Añádelo al yaml y 7.3 |
 | Admin: "acceso denegado" | Email no está en `ADMIN_EMAILS` o la cuenta no tiene contraseña | Revisa el yaml (lista JSON con comillas simples fuera) y pon contraseña en *Mi cuenta* |
 | El build falla en `npm ci` o `npm run build` | Error del front | Mira el log de Cloud Build (enlace que da `gcloud`); en local, `cd frontend && npm run build` |
+| "He olvidado mi contraseña" no manda nada | `EMAIL_BACKEND: "console"` o Gmail mal configurado | Paso 6b. Mientras, link a mano desde `/admin` (detalle del usuario → *Actions*) |
 | Supabase: el proyecto está en pausa | 7 días sin uso | Panel de Supabase → *Restore project* |
 
 ---

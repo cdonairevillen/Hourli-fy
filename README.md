@@ -119,6 +119,9 @@ espacios, miembros, invitaciones, proyectos, labels, sublabels, tareas y links d
 - No se pueden borrar usuarios, espacios, proyectos ni labels (se archivan editando). Sí tareas,
   invitaciones y links de recuperación.
 - Nunca muestra hashes de contraseñas ni de tokens.
+- **Link de recuperación a mano**: en el detalle de un usuario, *Actions → Link de recuperación*
+  genera un link (1 hora, un solo uso) para pasárselo si el email no le llega. El admin nunca ve
+  ni elige la contraseña: la pone el usuario.
 - Cada cambio queda en el log de la API (`sqladmin.audit`) con quién lo hizo.
 - La interfaz de SQLAdmin está en inglés (no trae español).
 

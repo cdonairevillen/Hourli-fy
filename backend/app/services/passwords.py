@@ -55,14 +55,11 @@ def authenticate(session: Session, email: str, password: str) -> User:
     return user
 
 
-def request_password_reset(session: Session, email: str, send: EmailSender) -> None:
-    """Si el email tiene cuenta, le manda un link de un solo uso que caduca en 1 hora.
+def create_reset_link(session: Session, user: User) -> str:
+    """Guarda un link de recuperación nuevo (1 hora, un solo uso) y devuelve su URL.
 
-    Si no la tiene, no hace nada: la ruta responde igual en los dos casos.
+    Lo usan el email de "he olvidado mi contraseña" y el botón del panel /admin.
     """
-    user = find_active_user_by_email(session, email)
-    if user is None:
-        return
     token = new_invitation_token()
     session.add(
         PasswordResetToken(
@@ -72,7 +69,18 @@ def request_password_reset(session: Session, email: str, send: EmailSender) -> N
         )
     )
     session.commit()
-    link = f"{settings.frontend_url.rstrip('/')}/recuperar/{token}"
+    return f"{settings.frontend_url.rstrip('/')}/recuperar/{token}"
+
+
+def request_password_reset(session: Session, email: str, send: EmailSender) -> None:
+    """Si el email tiene cuenta, le manda un link de un solo uso que caduca en 1 hora.
+
+    Si no la tiene, no hace nada: la ruta responde igual en los dos casos.
+    """
+    user = find_active_user_by_email(session, email)
+    if user is None:
+        return
+    link = create_reset_link(session, user)
     send_safely(
         send,
         EmailMessage(

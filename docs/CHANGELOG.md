@@ -21,6 +21,8 @@ Detalle, plan y decisiones en [CHANGELOG-fase-9.md](CHANGELOG-fase-9.md). Desde 
 - **Paso 5b · Rango en Mi hoja**: botón "Rango" con desde/hasta, hasta 31 días.
 - **Paso 6 · Desplegado** en Cloud Run y comprobado.
 - **Paso 6b · Desplegables en modo oscuro**: la lista abierta salía blanca con letras blancas.
+- **Paso 7 · Recuperar la contraseña**: los emails no salían en producción (`console`). Ahora se
+  envían por Gmail (SMTP) y el admin puede generar un link a mano desde `/admin`.
 - Ideas para más adelante: labels con color y estadísticas del proyecto (ver el detalle).
 
 ## 2026-10-10 · master · Despliegue: la web pasa a Cloud Run (sin Cloudflare)

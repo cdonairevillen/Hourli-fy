@@ -57,8 +57,8 @@ export function PrivacyPage() {
       <h2 className="text-lg font-semibold">Dónde se guardan</h2>
       <p>
         En una base de datos de Supabase (UE, Irlanda) y en servidores de Google Cloud (región europe-west1, Bélgica).
-        Los emails de recuperación de contraseña se envían con Resend. Los tres actúan como
-        encargados del tratamiento.
+        Los emails de recuperación de contraseña se envían desde una cuenta de Gmail (Google). Los
+        dos actúan como encargados del tratamiento.
       </p>
 
       <h2 className="text-lg font-semibold">Cuánto tiempo y cómo borrarlos</h2>

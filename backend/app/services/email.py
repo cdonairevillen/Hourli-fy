@@ -1,8 +1,10 @@
-"""Envío de emails. En local se escriben en la consola; en producción salen por Resend."""
+"""Envío de emails. En local se escriben en la consola; en producción salen por SMTP o Resend."""
 
 import logging
+import smtplib
 from collections.abc import Callable
 from dataclasses import dataclass
+from email.message import EmailMessage as MimeMessage
 
 import httpx
 
@@ -49,10 +51,28 @@ def send_with_resend(message: EmailMessage) -> None:
     response.raise_for_status()
 
 
+def send_with_smtp(message: EmailMessage) -> None:
+    """Envía el email por SMTP con SSL (p. ej. Gmail: smtp.gmail.com:465).
+
+    Con Gmail, EMAIL_FROM tiene que ser la misma cuenta que SMTP_USER y la contraseña es una
+    "contraseña de aplicación" (no la de la cuenta).
+    """
+    mime = MimeMessage()
+    mime["From"] = settings.email_from
+    mime["To"] = message.to
+    mime["Subject"] = message.subject
+    mime.set_content(message.text)
+    with smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=10) as server:
+        server.login(settings.smtp_user, settings.smtp_password)
+        server.send_message(mime)
+
+
 def get_email_sender() -> EmailSender:
     """Dependencia de FastAPI: los tests la cambian por una que guarda los emails en una lista."""
     if settings.email_backend == "resend":
         return send_with_resend
+    if settings.email_backend == "smtp":
+        return send_with_smtp
     return send_to_console
 
 

@@ -20,10 +20,15 @@ class Settings(BaseSettings):
     admin_emails: list[str] = []
     # URL del front: con ella se montan los links de los emails (recuperar contraseña).
     frontend_url: str = "http://localhost:5173"
-    # "console" escribe los emails en el log (local); "resend" los envía de verdad.
+    # "console" escribe los emails en el log (local); "resend" y "smtp" los envían de verdad.
     email_backend: str = "console"
     resend_api_key: str = ""
     email_from: str = "Hourli-fy <no-responder@example.com>"
+    # Solo con EMAIL_BACKEND=smtp (p. ej. Gmail con una contraseña de aplicación). Puerto 465 = SSL.
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 465
+    smtp_user: str = ""
+    smtp_password: str = ""
     # Carpeta con la web ya compilada (dist de Vite). Vacía en local; el Dockerfile la rellena.
     static_dir: str = ""
 

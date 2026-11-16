@@ -1,3 +1,6 @@
+import re
+import uuid
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -105,3 +108,41 @@ def test_login_del_panel_rechaza_a_quien_no_es_admin(make_client, admin_email):
 def test_admin_es_visible_en_me(make_client, admin_email):
     assert make_client("ana").get("/api/auth/me").json()["is_admin"] is True
     assert make_client("bea").get("/api/auth/me").json()["is_admin"] is False
+
+
+def test_admin_genera_link_de_recuperacion_que_funciona(make_client, admin_email, outbox):
+    """Si el email no llega, el admin saca un link y se lo pasa; el usuario elige su contraseña."""
+    ana = make_client("ana")
+    bea_id = make_client("bea").get("/api/auth/me").json()["id"]
+
+    page = get(ana, f"/admin/user/action/reset-link?pks={bea_id}")
+
+    assert page.status_code == 200
+    assert "bea@example.com" in page.text
+    token = re.search(r"/recuperar/([\w-]+)", page.text)[1]
+    assert outbox == []  # no se manda ningún email: el link solo se enseña al admin
+    reset = make_client().post(
+        "/api/auth/password/reset", json={"token": token, "password": "nueva-de-bea"}
+    )
+    assert reset.status_code == 200
+    login = make_client().post(
+        "/api/auth/login", json={"email": "bea@example.com", "password": "nueva-de-bea"}
+    )
+    assert login.status_code == 200
+
+
+def test_usuario_normal_no_genera_links_de_recuperacion(make_client, admin_email):
+    bea = make_client("bea")
+    ana_id = make_client("ana").get("/api/auth/me").json()["id"]
+
+    response = get(bea, f"/admin/user/action/reset-link?pks={ana_id}")
+
+    assert response.status_code in (302, 303)
+    assert "/admin/login" in response.headers["location"]
+
+
+def test_link_de_recuperacion_de_admin_con_usuario_inexistente(make_client, admin_email):
+    ana = make_client("ana")
+
+    assert get(ana, f"/admin/user/action/reset-link?pks={uuid.uuid4()}").status_code == 404
+    assert get(ana, "/admin/user/action/reset-link?pks=").status_code == 400

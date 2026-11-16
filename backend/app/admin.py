@@ -5,11 +5,13 @@ que se salta las reglas de la API (límite de espacios, permisos...). Las restri
 propia BD (sin solapes, máx. 24 h, nombres únicos...) sí se siguen aplicando.
 """
 
+import html
 import logging
 import uuid
 
 from fastapi import FastAPI, HTTPException
-from sqladmin import Admin, ModelView
+from fastapi.responses import HTMLResponse
+from sqladmin import Admin, ModelView, action
 from sqladmin.audit import LoggingAuditBackend
 from sqladmin.authentication import AuthenticationBackend
 from sqlalchemy.orm import sessionmaker
@@ -32,8 +34,10 @@ from app.models import (
     User,
     Workspace,
 )
-from app.services.passwords import authenticate
+from app.services.passwords import authenticate, create_reset_link
 from app.services.rate_limit import LOGIN_LIMIT
+
+logger = logging.getLogger(__name__)
 
 # Sesiones de BD del panel. Los tests la apuntan a la BD de pruebas con .configure(bind=...).
 admin_session_maker = sessionmaker(bind=engine, class_=Session)
@@ -102,6 +106,38 @@ class UserAdmin(ModelView, model=User):
     form_excluded_columns = ["password_hash", "google_sub"]
     can_create = False
     can_delete = False
+
+    @action(
+        name="reset-link",
+        label="Link de recuperación",
+        confirmation_message="¿Generar un link para que este usuario elija contraseña nueva?",
+        add_in_list=False,
+    )
+    async def reset_link(self, request: Request) -> HTMLResponse:
+        """Crea un link de recuperación (1 hora, un solo uso) y lo enseña para pasárselo a mano.
+
+        Para cuando el email no llega: el admin nunca ve ni pone la contraseña del usuario.
+        """
+        try:
+            user_id = uuid.UUID(request.query_params.get("pks", ""))
+        except ValueError:
+            return HTMLResponse("Elige un solo usuario.", status_code=400)
+        with admin_session_maker() as session:
+            user = session.get(User, user_id)
+            if user is None or user.deleted_at is not None:
+                return HTMLResponse("Usuario no encontrado o eliminado.", status_code=404)
+            link = create_reset_link(session, user)
+            email = user.email
+        token = request.cookies.get(SESSION_COOKIE)
+        admin_id = request.session.get("user_id") or (read_session_token(token) if token else None)
+        logger.warning("Admin %s generó un link de recuperación para %s", admin_id, email)
+        return HTMLResponse(
+            f"<p>Link para <strong>{html.escape(email)}</strong> (caduca en 1 hora, un solo "
+            f"uso). Pásaselo por un canal privado:</p>"
+            f"<p><input value='{html.escape(link)}' size='90' readonly onclick='this.select()'></p>"
+            f"<p><a href='{request.url_for('admin:details', identity='user', pk=str(user_id))}'>"
+            f"← Volver</a></p>"
+        )
 
 
 class WorkspaceAdmin(ModelView, model=Workspace):

@@ -362,6 +362,48 @@ front: desplegables legibles en modo oscuro
 Archivos: `frontend/src/index.css`, `frontend/src/components/NativeSelect.tsx`,
 `docs/CHANGELOG-fase-9.md`, `docs/CHANGELOG.md`.
 
+## Paso 7 · Recuperar la contraseña de verdad
+
+### El problema
+Una usuaria se olvidó de la contraseña, pulsó "He olvidado mi contraseña" y no le llegó nada. El
+código estaba bien, pero producción tenía `EMAIL_BACKEND: "console"` (como decía la guía): el
+link solo se escribía en los logs de Cloud Run y la web decía "te hemos enviado un email". Resend
+(paso 7.2 de la guía) necesita un dominio propio, y no lo tenemos.
+
+### Arreglo
+- **Envío por Gmail** (`EMAIL_BACKEND=smtp`): `send_with_smtp` en `services/email.py` con
+  `smtplib` (librería estándar, sin dependencias nuevas), SSL al puerto 465. Ajustes nuevos
+  `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER` y `SMTP_PASSWORD`. Con Gmail la clave es una *contraseña
+  de aplicación*: solo sirve para enviar y se revoca sin tocar la de la cuenta.
+- **Link de recuperación desde `/admin`**: en el detalle de un usuario, *Actions → Link de
+  recuperación* crea un link (1 hora, un solo uso) y lo enseña para pasárselo a mano. El admin
+  nunca ve ni pone la contraseña, la elige el usuario; queda en el log quién lo generó.
+- `create_reset_link` (en `services/passwords.py`) sale de `request_password_reset` para que el
+  email y el admin creen el link igual.
+- Guía: paso 6b nuevo (Gmail), aviso en 3.3 y fila en "Si algo falla". Privacidad: los emails
+  salen de Gmail (Google) en vez de Resend.
+- 6 tests nuevos (181 en total), en verde: el SMTP con un servidor falso (sin red) y el botón del
+  admin (el link funciona, un usuario normal no puede, usuario inexistente da 404).
+
+### Por qué Gmail y no otra cosa
+Sin dominio, Resend solo deja mandarte emails a ti mismo. Gmail por SMTP es gratis, no pide
+dominio y llega bien a la bandeja. Cuando haya dominio (el de la empresa en Hostinger) se puede
+pasar a Resend cambiando solo variables.
+
+### Commit propuesto
+```
+auth: emails de recuperación por Gmail (SMTP) y link a mano desde /admin
+
+- EMAIL_BACKEND=smtp con send_with_smtp (smtplib, SSL 465) y ajustes SMTP_*
+- /admin: acción "Link de recuperación" en el detalle de un usuario
+- create_reset_link compartido por el email y el admin
+- guía de despliegue (paso 6b), privacidad y tests
+```
+Archivos: `backend/app/services/email.py`, `backend/app/services/passwords.py`,
+`backend/app/admin.py`, `backend/app/core/config.py`, `backend/.env.example`,
+`backend/tests/test_email.py`, `backend/tests/test_admin.py`, `frontend/src/pages/PrivacyPage.tsx`,
+`docs/DESPLIEGUE.md`, `README.md`, `docs/CHANGELOG-fase-9.md`, `docs/CHANGELOG.md`.
+
 ## Ideas para más adelante (del autor, sin decidir todavía)
 
 1. **Labels con color.** El sistema de labels se queda igual, pero cada label padre tiene un color
