@@ -4,7 +4,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.admin import setup_admin
-from app.api import auth, catalog, entries, health, invitations, reports, workspaces
+from app.api import auth, catalog, entries, health, imports, invitations, reports, workspaces
 from app.core.config import settings
 from app.frontend import setup_frontend
 
@@ -27,6 +27,7 @@ api_router.include_router(invitations.router)
 api_router.include_router(catalog.router)
 api_router.include_router(entries.router)
 api_router.include_router(reports.router)
+api_router.include_router(imports.router)
 
 app.include_router(api_router)
 

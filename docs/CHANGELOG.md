@@ -3,6 +3,32 @@
 Qué se añade o cambia en cada paso, y por qué. Lo más reciente arriba.
 Formato: `## AAAA-MM-DD · rama · resumen`, con una sección por commit.
 
+## 2026-11-20 · main · Importador de PDFs de Clockify y usuarios fantasma
+
+Para meter de golpe las horas de 2024-2026 que estaban en Clockify (solo quedan los PDF
+«Informe detallado»).
+
+- **Sin IA**: el PDF tiene texto real con una maqueta fija. `pdfplumber` da la posición de cada
+  palabra: la X dice la columna (fecha, descripción, duración, usuario) y el color separa la
+  descripción (negro) de «proyecto - tarea» (gris). Descripciones partidas en varias líneas, `+1`
+  (acaba al día siguiente), `(Sin Descripción)` y entradas que cruzan de página incluidas.
+- **Comprobación**: la suma de las entradas tiene que cuadrar al segundo con el `Total:` del PDF;
+  si no, no se importa nada. Con los 3 PDFs reales cuadra (90, 1588 y 1583 entradas).
+- **Traducción al modelo**: todo va a un proyecto (se elige o se crea). «Scripts & scores - Banda
+  sonora - Jaleo» → label «Scripts & scores», sublabel «Banda sonora - Jaleo»; se pueden cambiar
+  en la vista previa. Horas de España → UTC; el fin es inicio + duración (así cuadra también el día
+  del cambio de hora).
+- **Lo que la BD no admite y Clockify sí**: solapes de una misma persona (se mueve detrás, con la
+  misma duración: así los totales no cambian), entradas de más de 24 h (se parten) y de 0 s (no se
+  guardan). Se cuentan en el resultado.
+- **Sin duplicados**: cada registro guarda la huella de su entrada original (`import_key`, único por
+  espacio); reimportar el mismo PDF no crea nada.
+- **Usuarios fantasma**: quien no tiene cuenta queda como fantasma (no puede entrar). El dueño (en
+  Equipo) o el admin generan un «Link para reclamar» de un solo uso; quien lo acepta se queda sus
+  horas y sus accesos. Si alguna se solapa con las suyas, no se mueve nada (409).
+- **Dos entradas**: pestaña **Importar** del dueño y `/admin/import` (cualquier espacio). Las dos
+  usan el mismo servicio. Migración `4aa43a9bfaee`.
+
 ## 2026-11-06 · main · Fase 9: peticiones de los usuarios
 
 Detalle, plan y decisiones en [CHANGELOG-fase-9.md](CHANGELOG-fase-9.md). Desde aquí se trabaja en

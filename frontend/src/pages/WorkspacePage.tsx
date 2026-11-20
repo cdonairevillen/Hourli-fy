@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, NavLink, useNavigate, useParams } from 'react-router'
 import { CategoriesCard } from '@/components/catalog/CategoriesCard'
+import { ImportCard } from '@/components/imports/ImportCard'
 import { NativeSelect } from '@/components/NativeSelect'
 import { ProjectLinks } from '@/components/entries/ProjectLinks'
 import { TimesheetCard } from '@/components/entries/TimesheetCard'
@@ -30,11 +31,12 @@ function formatDate(value: string) {
 
 // Un espacio en pestañas: "Proyectos" (entrada a la hoja de cada uno), "Mi hoja" (mis horas
 // por semana/periodo de 14 días), "Panel" (horas de todo el equipo; solo el dueño), "Catálogo" (proyectos
-// y labels) y "Equipo" (ajustes, miembros e invitaciones). Lo del dueño se oculta a los miembros.
+// y labels), "Equipo" (ajustes, miembros e invitaciones) e "Importar" (PDFs de Clockify; solo el
+// dueño). Lo del dueño se oculta a los miembros.
 export function WorkspacePage({
   tab,
 }: {
-  tab: 'projects' | 'sheet' | 'panel' | 'catalog' | 'team'
+  tab: 'projects' | 'sheet' | 'panel' | 'catalog' | 'team' | 'import'
 }) {
   const { wid = '' } = useParams()
   const navigate = useNavigate()
@@ -101,6 +103,9 @@ export function WorkspacePage({
         {workspace.is_owner && <TabLink to={`/w/${wid}/panel`}>Panel</TabLink>}
         <TabLink to={`/w/${wid}/catalogo`}>Catálogo</TabLink>
         <TabLink to={`/w/${wid}/equipo`}>Equipo</TabLink>
+        {workspace.is_owner && !workspace.archived && (
+          <TabLink to={`/w/${wid}/importar`}>Importar</TabLink>
+        )}
       </nav>
 
       {tab === 'projects' && <ProjectLinks workspace={workspace} />}
@@ -134,6 +139,14 @@ export function WorkspacePage({
           <CategoriesCard workspace={workspace} />
         </>
       )}
+      {tab === 'import' &&
+        (workspace.is_owner && !workspace.archived ? (
+          <ImportCard workspace={workspace} />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Solo el dueño importa horas, y en espacios sin archivar.
+          </p>
+        ))}
     </div>
   )
 }
@@ -251,6 +264,19 @@ function MembersCard({
   })
   const catalog = useCatalog(workspace.id)
   const [editing, setEditing] = useState<string | null>(null)
+  // Link para reclamar un fantasma: solo se ve al crearlo (como las invitaciones).
+  const [claim, setClaim] = useState<{ name: string; link: string } | null>(null)
+  const createClaim = useMutation({
+    mutationFn: (member: Member) =>
+      apiPost<InvitationCreated>(`/workspaces/${workspace.id}/members/${member.user_id}/claim-link`),
+    onSuccess: (invitation) => {
+      setClaim({
+        name: invitation.claim_user_name ?? '',
+        link: `${window.location.origin}/invite/${invitation.token}`,
+      })
+      queryClient.invalidateQueries({ queryKey: ['invitations', workspace.id] })
+    },
+  })
   const projectNames = (ids: string[]) =>
     ids.map((id) => catalog.projectById.get(id)?.name ?? '¿?').join(', ') || 'ningún proyecto'
 
@@ -266,6 +292,11 @@ function MembersCard({
               <span className="font-medium">{member.name}</span>{' '}
               <span className="text-sm text-muted-foreground">{member.email}</span>
               {member.is_owner && <Badge className="ml-2">Dueño</Badge>}
+              {member.is_ghost && (
+                <Badge variant="secondary" className="ml-2">
+                  Fantasma
+                </Badge>
+              )}
               <div className="text-xs text-muted-foreground">
                 {member.all_projects
                   ? 'Todos los proyectos'
@@ -274,6 +305,16 @@ function MembersCard({
             </div>
             {workspace.is_owner && member.user_id !== meId && (
               <div className="flex gap-2">
+                {member.is_ghost && !workspace.archived && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={createClaim.isPending}
+                    onClick={() => createClaim.mutate(member)}
+                  >
+                    Link para reclamar
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="outline"
@@ -281,9 +322,11 @@ function MembersCard({
                 >
                   Permisos
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => onTransfer(member)}>
-                  Hacer dueño
-                </Button>
+                {!member.is_ghost && (
+                  <Button size="sm" variant="outline" onClick={() => onTransfer(member)}>
+                    Hacer dueño
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="destructive"
@@ -304,6 +347,23 @@ function MembersCard({
           </div>
         ))}
         {expel.isError && <p className="text-sm text-destructive">{expel.error.message}</p>}
+        {createClaim.isError && (
+          <p className="text-sm text-destructive">{createClaim.error.message}</p>
+        )}
+        {claim && (
+          <div className="flex flex-col gap-2 rounded-lg border bg-muted p-3">
+            <p className="text-sm">
+              Link para que la persona real reclame las horas de «{claim.name}» (un solo uso).
+              Cópialo ahora: no se vuelve a mostrar.
+            </p>
+            <div className="flex gap-2">
+              <Input readOnly value={claim.link} onFocus={(event) => event.target.select()} />
+              <Button variant="outline" onClick={() => navigator.clipboard.writeText(claim.link)}>
+                Copiar
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
@@ -404,7 +464,12 @@ function InvitationsCard({ wid }: { wid: string }) {
                   {STATUS_LABEL[invitation.status]}
                 </Badge>
                 <span>
-                  {invitation.project_name ? `Proyecto ${invitation.project_name}` : 'Todo el espacio'} ·
+                  {invitation.claim_user_name
+                    ? `Reclamar las horas de ${invitation.claim_user_name}`
+                    : invitation.project_name
+                      ? `Proyecto ${invitation.project_name}`
+                      : 'Todo el espacio'}{' '}
+                  ·
                   Caduca {formatDate(invitation.expires_at)} · {invitation.uses}
                   {invitation.max_uses ? `/${invitation.max_uses}` : ''} usos
                 </span>

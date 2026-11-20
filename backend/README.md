@@ -25,9 +25,10 @@ app/
 │   ├── google.py    verificación del ID token de Google
 │   └── passwords.py hash y verificación de contraseñas (argon2)
 ├── admin.py         panel /admin (SQLAdmin) y su control de acceso (ADMIN_EMAILS)
+├── templates/       plantillas propias del panel (importador de Clockify)
 ├── db.py            engine de SQLAlchemy + get_session() (dependencia por petición)
 ├── schemas.py       cuerpos de petición y respuesta (Pydantic)
-├── api/             un módulo por grupo de rutas (health, auth, workspaces, invitations, catalog, entries, reports)
+├── api/             un módulo por grupo de rutas (health, auth, workspaces, invitations, catalog, entries, reports, imports)
 │   └── deps.py      dependencias: usuario actual, MemberAccess y OwnerAccess de un espacio
 ├── services/        reglas que usan varias rutas (espacios, registros, panel, cuentas, contraseñas,
 │                    emails, freno a la fuerza bruta)
@@ -64,8 +65,9 @@ espacio, sus rutas responden 404 (no 403) para no revelar que existe.
 | GET | `/api/workspaces/{wid}/invitations` | Links del espacio y su estado | Dueño |
 | POST | `/api/workspaces/{wid}/invitations` | Crear link (10 días, `max_uses` y `project_id` opcionales: sin proyecto = al espacio entero); el token solo sale aquí | Dueño |
 | DELETE | `/api/workspaces/{wid}/invitations/{id}` | Revocar un link | Dueño |
+| POST | `/api/workspaces/{wid}/members/{uid}/claim-link` | Link de un solo uso para reclamar las horas de un usuario fantasma; el token solo sale aquí | Dueño |
 | GET | `/api/invitations/{token}` | A qué espacio invita y si sigue valiendo | Público |
-| POST | `/api/invitations/{token}/accept` | Unirse al espacio | Todos |
+| POST | `/api/invitations/{token}/accept` | Unirse al espacio (o, si es un link para reclamar, quedarse las horas y accesos del fantasma; 409 si se solapan con las mías) | Todos |
 | GET | `/api/workspaces/{wid}/projects?include_archived=` | Proyectos (por defecto, solo activos) | Miembro |
 | POST | `/api/workspaces/{wid}/projects` | Crear proyecto (`name`, `color` #RRGGBB) | Dueño |
 | PATCH | `/api/workspaces/{wid}/projects/{id}` | Renombrar, cambiar color, archivar/desarchivar | Dueño |
@@ -86,6 +88,8 @@ espacio, sus rutas responden 404 (no 403) para no revelar que existe.
 | GET | `/api/timer/current` | Mi cronómetro en marcha, o null | Todos |
 | GET | `/api/workspaces/{wid}/reports/summary` | Panel: total y desglose por persona, proyecto, label y día | Dueño |
 | GET | `/api/workspaces/{wid}/reports/entries?limit=&offset=` | Panel: tareas que cumplen los filtros, paginadas | Dueño |
+| POST | `/api/workspaces/{wid}/imports/preview` | PDF de Clockify (multipart `file`): personas, labels y duplicados sugeridos. No guarda nada | Dueño |
+| POST | `/api/workspaces/{wid}/imports` | Importar el PDF (`file` + `options` en JSON). 422 si no cuadra con su total | Dueño |
 
 Filtros del panel (comunes a las dos rutas): `period=AAAA-MM-DD` (el periodo de 14 días que
 contiene ese día) **o** `from` + `to` (por defecto, el periodo actual), `user_id`, `project_id`, `category_id`, `subcategory_id` y `q` (texto en el
@@ -114,6 +118,12 @@ El contrato completo está en [`specs/api/openapi.yaml`](../specs/api/openapi.ya
   Detrás de un proxy (Cloud Run) habrá que leer la IP real de `X-Forwarded-For`.
 - **Panel /admin con SQLAdmin**: su cookie se llama `admin_session` para no pisar la `session` de
   la app, y los tests lo apuntan a la BD de pruebas con `admin_session_maker.configure(...)`.
+- **Importador de Clockify sin IA** (`services/clockify_pdf.py` + `clockify_import.py`): el PDF
+  tiene texto real, así que se lee con `pdfplumber` por la posición X de cada palabra (columna) y su
+  color (descripción en negro, proyecto en gris). Se exige que la suma cuadre al segundo con el
+  `Total:` del PDF. Lo usan la ruta del dueño y `/admin/import`.
+- **Usuarios fantasma**: quien sale en un PDF sin cuenta es un `User` con `is_ghost` y email
+  `.invalid` (no puede entrar). Se reclama con una invitación con `claim_user_id` (un solo uso).
 - **El usuario se identifica por `google_sub`**, no por email: el email de una cuenta de Google puede cambiar.
 - **Tokens de invitación**: aleatorios de 256 bits; en la BD solo su SHA-256. Basta SHA-256 (y no
   argon2 como con contraseñas) porque un token aleatorio tan largo no se puede adivinar por fuerza bruta.

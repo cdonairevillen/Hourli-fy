@@ -25,3 +25,5 @@ class Invitation(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
     # null = invita al espacio entero (todos los proyectos); con valor = solo a ese proyecto.
     project_id: uuid.UUID | None = Field(default=None, foreign_key="projects.id")
+    # Link para reclamar un usuario fantasma: quien lo acepta se queda sus horas y sus accesos.
+    claim_user_id: uuid.UUID | None = Field(default=None, foreign_key="users.id")

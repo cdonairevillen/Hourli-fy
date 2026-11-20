@@ -6,7 +6,10 @@ from fastapi.testclient import TestClient
 
 from app.admin import ADMIN_VIEWS
 from app.core.config import settings
+from tests.test_clockify_pdf import build_clockify_pdf
 from tests.test_entries import create_manual, setup_workspace
+from tests.test_imports import BASIC, BASIC_TOTAL, members_by_name
+from tests.test_workspaces import create_workspace
 
 
 @pytest.fixture
@@ -146,3 +149,92 @@ def test_link_de_recuperacion_de_admin_con_usuario_inexistente(make_client, admi
 
     assert get(ana, f"/admin/user/action/reset-link?pks={uuid.uuid4()}").status_code == 404
     assert get(ana, "/admin/user/action/reset-link?pks=").status_code == 400
+
+
+# --- Importador de Clockify en el panel ---
+
+
+def admin_import(client: TestClient, wid: str) -> str:
+    """Sube el PDF, comprueba la vista previa y confirma. Devuelve la página del resultado."""
+    pdf = build_clockify_pdf(BASIC, total=BASIC_TOTAL)
+    page = client.post(
+        "/admin/import",
+        data={"step": "preview", "workspace_id": wid, "project_name": "Proyecto Lorca"},
+        files={"file": ("informe.pdf", pdf, "application/pdf")},
+    )
+    assert page.status_code == 200, page.text
+    assert "Irene Félix" in page.text and "Bea Ruiz" in page.text
+    encoded = re.search(r'name="pdf" value="([^"]+)"', page.text)[1]
+    result = client.post(
+        "/admin/import",
+        data={
+            "step": "confirm",
+            "workspace_id": wid,
+            "project_name": "Proyecto Lorca",
+            "pdf": encoded,
+            "person_name": ["Bea Ruiz", "Irene Félix"],
+            "person_user": ["", ""],
+        },
+    )
+    assert result.status_code == 200, result.text
+    return result.text
+
+
+def test_admin_importa_un_pdf_en_cualquier_espacio(make_client, admin_email):
+    ana, bea = make_client("ana"), make_client("bea")
+    wid = create_workspace(bea, "Estudio de Bea")["id"]
+
+    form = get(ana, "/admin/import")
+    result = admin_import(ana, wid)
+
+    assert form.status_code == 200
+    assert "Estudio de Bea" in form.text
+    assert "3 registros nuevos" in result
+    assert members_by_name(bea, wid)["Irene Félix"]["is_ghost"] is True
+
+
+def test_admin_importador_con_pdf_que_no_cuadra(make_client, admin_email):
+    ana = make_client("ana")
+    wid = create_workspace(ana)["id"]
+    pdf = build_clockify_pdf(BASIC, total="9:00:00")
+
+    page = ana.post(
+        "/admin/import",
+        data={"step": "preview", "workspace_id": wid, "project_name": "Proyecto Lorca"},
+        files={"file": ("informe.pdf", pdf, "application/pdf")},
+    )
+
+    assert page.status_code == 400
+    assert "no se importa nada" in page.text
+
+
+def test_usuario_normal_no_entra_al_importador(make_client, admin_email):
+    response = get(make_client("bea"), "/admin/import")
+
+    assert response.status_code in (302, 303)
+
+
+def test_admin_genera_link_para_reclamar_un_fantasma(make_client, admin_email):
+    ana, irene = make_client("ana"), make_client("irene")
+    wid = create_workspace(ana)["id"]
+    admin_import(ana, wid)
+    ghost_id = members_by_name(ana, wid)["Irene Félix"]["user_id"]
+
+    page = get(ana, f"/admin/user/action/claim-link?pks={ghost_id}")
+    token = re.search(r"/invite/([\w-]+)", page.text)[1]
+    accepted = irene.post(f"/api/invitations/{token}/accept")
+
+    assert page.status_code == 200
+    assert accepted.status_code == 200
+    assert "Irene" in members_by_name(ana, wid)
+
+
+def test_fantasmas_sin_link_de_recuperacion_y_reclamar_solo_fantasmas(make_client, admin_email):
+    ana = make_client("ana")
+    wid = create_workspace(ana)["id"]
+    admin_import(ana, wid)
+    ghost_id = members_by_name(ana, wid)["Bea Ruiz"]["user_id"]
+    ana_id = ana.get("/api/auth/me").json()["id"]
+
+    assert get(ana, f"/admin/user/action/reset-link?pks={ghost_id}").status_code == 409
+    assert get(ana, f"/admin/user/action/claim-link?pks={ana_id}").status_code == 404

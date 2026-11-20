@@ -59,7 +59,10 @@ def invitation_status(
 
 
 def invitation_read(
-    invitation: Invitation, workspace: Workspace, project: Project | None = None
+    invitation: Invitation,
+    workspace: Workspace,
+    project: Project | None = None,
+    claim_user_name: str | None = None,
 ) -> InvitationRead:
     return InvitationRead(
         id=invitation.id,
@@ -70,4 +73,5 @@ def invitation_read(
         status=invitation_status(invitation, workspace, project),
         project_id=invitation.project_id,
         project_name=project.name if project is not None else None,
+        claim_user_name=claim_user_name,
     )

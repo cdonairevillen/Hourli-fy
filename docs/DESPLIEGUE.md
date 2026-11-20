@@ -264,7 +264,8 @@ Gmail por SMTP: gratis, unos 500 emails al día, y no hace falta dominio.
    ella no deja crear contraseñas de aplicación.
 2. <https://myaccount.google.com/apppasswords> → nombre `Hourli-fy` → **Crear**. Copia la clave de
    16 letras (sin espacios). Es una contraseña solo para enviar: se puede revocar ahí mismo
-   cuando quieras, sin tocar la de tu cuenta.
+   cuando quieras, sin tocar la de tu cuenta. Si Google te pide la **llave de acceso** por Bluetooth y no conecta,
+   ver el anexo al final de esta guía.
 3. En `~/hourlify-env.yaml` cambia `EMAIL_BACKEND` y añade (el remitente **tiene que ser** ese
    mismo Gmail; si no, Gmail lo cambia o lo rechaza):
    ```yaml
@@ -472,3 +473,29 @@ Después prueba el paso 6 entero. El proyecto de Cloudflare puedes borrarlo
   cuando Cloud Run para o crea instancias. Para este uso basta.
 - **Supabase Realtime** (fase 6, pendiente) se hará después del despliegue. Entonces habrá que
   revisar qué expone Supabase (RLS en `time_entries`) antes de activarlo.
+
+---
+
+## Anexo · Contraseña de aplicación de Gmail sin llave de acceso por Bluetooth
+
+Al abrir <https://myaccount.google.com/apppasswords> Google vuelve a pedir que confirmes que eres
+tú. Si tienes una **llave de acceso** (passkey) en el móvil, en el ordenador te sale un QR y espera
+conectar el móvil por **Bluetooth**; si no conecta, no pasas. Opciones, de la más fácil a la menos:
+
+1. **Hazlo desde el propio móvil** (sin Bluetooth): abre <https://myaccount.google.com/apppasswords>
+   en el navegador del móvil, con esa cuenta de Gmail. Confirma con la huella o el PIN del móvil,
+   crea la clave (`Hourli-fy`) y apúntala: **solo se enseña una vez**. Pásala al ordenador por un
+   canal tuyo (p. ej. una nota o un mensaje a ti mismo) y **bórrala de ahí** cuando esté en
+   `~/hourlify-env.yaml`. Si se pierde, se borra esa clave y se crea otra.
+2. **En el ordenador, "Probar otra manera"** (*Try another way*) en la pantalla del QR: elige
+   contraseña de la cuenta, el aviso "¿Eres tú?" en el móvil, un código de Google Authenticator o
+   SMS, o un código de seguridad de reserva.
+3. **Que conecte el Bluetooth**: tiene que estar encendido en el ordenador **y** en el móvil, y el
+   QR se escanea con la cámara del móvil (no hace falta emparejarlos antes). Si el ordenador no
+   tiene Bluetooth, usa la opción 1 o 2.
+
+Si en vez de la página sale **"La opción de configuración que buscas no está disponible para tu
+cuenta"**: Google no deja contraseñas de aplicación si la verificación en 2 pasos usa **solo**
+llaves de seguridad, si la cuenta tiene *Protección avanzada* o si es de trabajo/estudios. En
+Cuenta de Google → Seguridad → Verificación en 2 pasos, añade un segundo paso de otro tipo (avisos
+de Google en el móvil, Authenticator o SMS) y vuelve a probar.

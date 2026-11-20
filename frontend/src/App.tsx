@@ -78,6 +78,7 @@ function PrivateApp() {
         <Route path="/w/:wid/panel" element={<WorkspacePage tab="panel" />} />
         <Route path="/w/:wid/catalogo" element={<WorkspacePage tab="catalog" />} />
         <Route path="/w/:wid/equipo" element={<WorkspacePage tab="team" />} />
+        <Route path="/w/:wid/importar" element={<WorkspacePage tab="import" />} />
         <Route path="/w/:wid/p/:pid" element={<ProjectSheetPage />} />
         <Route path="/cuenta" element={<AccountPage />} />
         <Route path="*" element={<p>Página no encontrada.</p>} />

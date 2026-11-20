@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 
+from sqlalchemy import false
 from sqlmodel import Field, SQLModel
 
 from app.models.common import TZDateTime, utc_now
@@ -24,3 +25,6 @@ class User(SQLModel, table=True):
     deleted_at: datetime | None = Field(default=None, sa_type=TZDateTime)
     # Hash argon2 de la contraseña (nunca la contraseña). null = cuenta solo de Google.
     password_hash: str | None = None
+    # Usuario "fantasma": lo crea el importador de Clockify para alguien sin cuenta. No puede
+    # entrar (sin contraseña ni Google); una persona lo reclama con un link y se queda sus horas.
+    is_ghost: bool = Field(default=False, sa_column_kwargs={"server_default": false()})

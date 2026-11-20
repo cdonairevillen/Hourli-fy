@@ -29,6 +29,7 @@ from app.schemas import (
     WorkspaceUpdate,
 )
 from app.services.access import grant_project, revoke_projects
+from app.services.ghosts import create_claim_invitation
 from app.services.workspaces import (
     INVITATION_DAYS,
     ensure_can_own_another,
@@ -87,6 +88,10 @@ def update_workspace(
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_CONTENT, "El nuevo dueño debe ser miembro del espacio"
             )
+        if session.get_one(User, new_owner_id).is_ghost:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT, "Un usuario fantasma no puede ser el dueño"
+            )
     # Pasa a contar en el límite de alguien si queda activo y cambia de dueño o se desarchiva.
     if not archived and (new_owner_id != workspace.owner_id or workspace.archived):
         ensure_can_own_another(session, new_owner_id)
@@ -127,6 +132,7 @@ def list_members(session: SessionDep, access: MemberAccess) -> list[MemberRead]:
             joined_at=membership.joined_at,
             all_projects=user.id == access.workspace.owner_id or membership.all_projects,
             project_ids=sorted(granted.get(user.id, []), key=str),
+            is_ghost=user.is_ghost,
         )
         for membership, user in rows
     ]
@@ -225,8 +231,18 @@ def list_invitations(session: SessionDep, access: OwnerAccess) -> list[Invitatio
             select(Project).where(Project.workspace_id == access.workspace.id)
         ).all()
     }
+    claim_ids = {invitation.claim_user_id for invitation in invitations} - {None}
+    claim_names = {
+        user.id: user.name
+        for user in session.exec(select(User).where(User.id.in_(claim_ids))).all()
+    }
     return [
-        invitation_read(invitation, access.workspace, projects.get(invitation.project_id))
+        invitation_read(
+            invitation,
+            access.workspace,
+            projects.get(invitation.project_id),
+            claim_names.get(invitation.claim_user_id),
+        )
         for invitation in invitations
     ]
 
@@ -263,6 +279,20 @@ def create_invitation(
     session.commit()
     session.refresh(invitation)
     read = invitation_read(invitation, access.workspace, project)
+    return InvitationCreated(**read.model_dump(), token=token)
+
+
+@router.post("/{wid}/members/{uid}/claim-link", status_code=status.HTTP_201_CREATED)
+def create_claim_link(
+    uid: uuid.UUID, session: SessionDep, access: OwnerAccess
+) -> InvitationCreated:
+    """Link de un solo uso para que una persona reclame las horas de un usuario fantasma."""
+    membership = session.get(Membership, (access.workspace.id, uid))
+    ghost = session.get(User, uid)
+    if membership is None or membership.removed_at is not None or ghost is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Miembro no encontrado")
+    invitation, token = create_claim_invitation(session, access.workspace, ghost, access.user.id)
+    read = invitation_read(invitation, access.workspace, None, ghost.name)
     return InvitationCreated(**read.model_dump(), token=token)
 
 

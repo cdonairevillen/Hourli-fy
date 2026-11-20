@@ -42,6 +42,10 @@ cd frontend && npm run lint && npm run build        # comprobar front
 - `time_entries.end_at IS NULL` = cronómetro en marcha; índice único parcial: uno por usuario.
 - La duración no se guarda: `end_at - start_at`.
 - Fechas en UTC en BD; se muestran en Europe/Madrid.
+- Importador de PDFs de Clockify (dueño en la pestaña Importar, admin en `/admin/import`):
+  `services/clockify_pdf.py` (lector) + `services/clockify_import.py`. `time_entries.import_key`
+  evita duplicar al reimportar. Quien no tiene cuenta es un usuario fantasma (`users.is_ghost`),
+  que se reclama con una invitación con `claim_user_id` (`services/ghosts.py`).
 - Nada con registros se borra: se archiva (`archived = true`). Espacios y proyectos sin tareas
   sí se pueden borrar.
 - Periodos de 14 días seguidos contados desde el sábado 7-nov-2026 (`PERIOD_START`, en

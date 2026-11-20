@@ -610,6 +610,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/members/{uid}/claim-link:
+    post:
+      tags:
+      - workspaces
+      summary: Create Claim Link
+      description: Link de un solo uso para que una persona reclame las horas de un
+        usuario fantasma.
+      operationId: create_claim_link_api_workspaces__wid__members__uid__claim_link_post
+      parameters:
+      - name: uid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Uid
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationCreated'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/workspaces/{wid}/invitations/{invitation_id}:
     delete:
       tags:
@@ -1753,8 +1797,120 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/imports/preview:
+    post:
+      tags:
+      - imports
+      summary: Preview Import
+      description: Lee el PDF y enseña qué se importaría (personas, labels, duplicados).
+        No guarda nada.
+      operationId: preview_import_api_workspaces__wid__imports_preview_post
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_preview_import_api_workspaces__wid__imports_preview_post'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportPreview'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/workspaces/{wid}/imports:
+    post:
+      tags:
+      - imports
+      summary: Import Pdf
+      description: Importa el PDF con las opciones elegidas (lo que no venga, como
+        en la vista previa).
+      operationId: import_pdf_api_workspaces__wid__imports_post
+      parameters:
+      - name: wid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Wid
+      - name: session
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_import_pdf_api_workspaces__wid__imports_post'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportResult'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    Body_import_pdf_api_workspaces__wid__imports_post:
+      properties:
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          title: File
+          description: PDF «Informe detallado» de Clockify
+        options:
+          type: string
+          title: Options
+          default: '{}'
+      type: object
+      required:
+      - file
+      title: Body_import_pdf_api_workspaces__wid__imports_post
+    Body_preview_import_api_workspaces__wid__imports_preview_post:
+      properties:
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          title: File
+          description: PDF «Informe detallado» de Clockify
+      type: object
+      required:
+      - file
+      title: Body_preview_import_api_workspaces__wid__imports_preview_post
     CatalogItemCreate:
       properties:
         name:
@@ -1883,6 +2039,169 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    ImportLabel:
+      properties:
+        project_line:
+          type: string
+          title: Project Line
+        entry_count:
+          type: integer
+          title: Entry Count
+        total_seconds:
+          type: integer
+          title: Total Seconds
+        label:
+          type: string
+          title: Label
+        sublabel:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sublabel
+        label_exists:
+          type: boolean
+          title: Label Exists
+        sublabel_exists:
+          type: boolean
+          title: Sublabel Exists
+      type: object
+      required:
+      - project_line
+      - entry_count
+      - total_seconds
+      - label
+      - sublabel
+      - label_exists
+      - sublabel_exists
+      title: ImportLabel
+      description: Una línea "proyecto - tarea" de Clockify y la label/sublabel en
+        la que se guardará.
+    ImportPerson:
+      properties:
+        name:
+          type: string
+          title: Name
+        entry_count:
+          type: integer
+          title: Entry Count
+        total_seconds:
+          type: integer
+          title: Total Seconds
+        user_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: User Id
+        user_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Name
+        is_ghost:
+          type: boolean
+          title: Is Ghost
+      type: object
+      required:
+      - name
+      - entry_count
+      - total_seconds
+      - user_id
+      - user_name
+      - is_ghost
+      title: ImportPerson
+      description: Una persona del PDF, sus horas y a quién se le asignan.
+    ImportPreview:
+      properties:
+        period:
+          type: string
+          title: Period
+        total_seconds:
+          type: integer
+          title: Total Seconds
+        entry_count:
+          type: integer
+          title: Entry Count
+        first_day:
+          type: string
+          format: date
+          title: First Day
+        last_day:
+          type: string
+          format: date
+          title: Last Day
+        duplicate_count:
+          type: integer
+          title: Duplicate Count
+        people:
+          items:
+            $ref: '#/components/schemas/ImportPerson'
+          type: array
+          title: People
+        labels:
+          items:
+            $ref: '#/components/schemas/ImportLabel'
+          type: array
+          title: Labels
+      type: object
+      required:
+      - period
+      - total_seconds
+      - entry_count
+      - first_day
+      - last_day
+      - duplicate_count
+      - people
+      - labels
+      title: ImportPreview
+    ImportResult:
+      properties:
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        created_count:
+          type: integer
+          title: Created Count
+        duplicate_count:
+          type: integer
+          title: Duplicate Count
+        shifted_count:
+          type: integer
+          title: Shifted Count
+        split_count:
+          type: integer
+          title: Split Count
+        empty_count:
+          type: integer
+          title: Empty Count
+        imported_seconds:
+          type: integer
+          title: Imported Seconds
+        ghosts_created:
+          items:
+            type: string
+          type: array
+          title: Ghosts Created
+        labels_created:
+          type: integer
+          title: Labels Created
+        sublabels_created:
+          type: integer
+          title: Sublabels Created
+      type: object
+      required:
+      - project_id
+      - created_count
+      - duplicate_count
+      - shifted_count
+      - split_count
+      - empty_count
+      - imported_seconds
+      - ghosts_created
+      - labels_created
+      - sublabels_created
+      title: ImportResult
     InvitationCreate:
       properties:
         max_uses:
@@ -1942,6 +2261,11 @@ components:
           - type: string
           - type: 'null'
           title: Project Name
+        claim_user_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Claim User Name
         token:
           type: string
           title: Token
@@ -1989,6 +2313,11 @@ components:
           - type: string
           - type: 'null'
           title: Project Name
+        claim_user_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Claim User Name
       type: object
       required:
       - workspace_name
@@ -2041,6 +2370,11 @@ components:
           - type: string
           - type: 'null'
           title: Project Name
+        claim_user_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Claim User Name
       type: object
       required:
       - id
@@ -2118,6 +2452,10 @@ components:
             format: uuid
           type: array
           title: Project Ids
+        is_ghost:
+          type: boolean
+          title: Is Ghost
+          default: false
       type: object
       required:
       - user_id

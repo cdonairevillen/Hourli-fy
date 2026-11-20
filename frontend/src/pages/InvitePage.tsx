@@ -51,14 +51,18 @@ export function InvitePage() {
           <>
             <CardHeader>
               <CardTitle>
-                {preview.data.project_name
-                  ? `Te invitan al proyecto «${preview.data.project_name}»`
-                  : `Te invitan a «${preview.data.workspace_name}»`}
+                {preview.data.claim_user_name
+                  ? `Reclamar las horas de «${preview.data.claim_user_name}»`
+                  : preview.data.project_name
+                    ? `Te invitan al proyecto «${preview.data.project_name}»`
+                    : `Te invitan a «${preview.data.workspace_name}»`}
               </CardTitle>
               <CardDescription>
-                {preview.data.project_name
-                  ? `De «${preview.data.workspace_name}» (${preview.data.owner_name}). Verás solo este proyecto.`
-                  : `De ${preview.data.owner_name}. Verás todos sus proyectos.`}
+                {preview.data.claim_user_name
+                  ? `En «${preview.data.workspace_name}» (${preview.data.owner_name}). Son horas importadas de Clockify: al aceptar pasan a tu cuenta, junto con sus proyectos.`
+                  : preview.data.project_name
+                    ? `De «${preview.data.workspace_name}» (${preview.data.owner_name}). Verás solo este proyecto.`
+                    : `De ${preview.data.owner_name}. Verás todos sus proyectos.`}
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-3">
@@ -66,7 +70,7 @@ export function InvitePage() {
                 <p className="text-destructive">{INVALID_REASON[preview.data.status]}</p>
               ) : me.data ? (
                 <Button className="w-full" disabled={accept.isPending} onClick={() => accept.mutate()}>
-                  Unirme como {me.data.name}
+                  {preview.data.claim_user_name ? 'Reclamarlas' : 'Unirme'} como {me.data.name}
                 </Button>
               ) : (
                 !me.isLoading && <AuthPanel />

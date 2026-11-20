@@ -1,0 +1,127 @@
+{% extends "sqladmin/layout.html" %}
+{# Importador de PDFs de Clockify en el panel (ver ImportAdmin en app/admin.py). Tres pasos en la
+   misma página: subir → vista previa (elegir a quién van las horas) → resultado. #}
+{% block content %}
+<div class="container-xl py-3">
+  <h2 class="mb-3">Importar horas de Clockify (PDF «Informe detallado»)</h2>
+
+  {% if error %}
+  <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+
+  {% if result %}
+  <div class="alert alert-success">
+    <p class="mb-1"><strong>Importado en «{{ workspace.name }}».</strong></p>
+    <ul class="mb-0">
+      <li>{{ result.created_count }} registros nuevos ({{ hours(result.imported_seconds) }}).</li>
+      <li>{{ result.duplicate_count }} ya estaban importados (no se duplican).</li>
+      <li>{{ result.shifted_count }} se solapaban con otro de la misma persona y se movieron justo
+        detrás (misma duración).</li>
+      <li>{{ result.split_count }} duraban más de 24 h y se partieron en trozos.</li>
+      <li>{{ result.empty_count }} duraban 0 segundos y no se guardan.</li>
+      <li>Fantasmas creados: {{ result.ghosts_created | join(", ") or "ninguno" }}.</li>
+      <li>Labels nuevas: {{ result.labels_created }} · sublabels nuevas: {{ result.sublabels_created }}.</li>
+    </ul>
+  </div>
+  <p>Para que una persona reclame las horas de su fantasma: Usuarios → el fantasma → «Link para
+    reclamar».</p>
+  <a class="btn btn-secondary" href="{{ request.url }}">Importar otro PDF</a>
+
+  {% elif preview %}
+  <form method="post" class="card">
+    <input type="hidden" name="step" value="confirm">
+    <input type="hidden" name="workspace_id" value="{{ workspace.id }}">
+    <input type="hidden" name="project_name" value="{{ project_name }}">
+    <input type="hidden" name="pdf" value="{{ pdf }}">
+    <div class="card-body">
+      <p>
+        Espacio <strong>{{ workspace.name }}</strong> · proyecto <strong>{{ project_name }}</strong> ·
+        periodo {{ preview.period }} · {{ preview.entry_count }} entradas ·
+        <strong>{{ hours(preview.total_seconds) }}</strong> (cuadra con el total del PDF).
+      </p>
+      {% if preview.duplicate_count %}
+      <div class="alert alert-warning">{{ preview.duplicate_count }} entradas ya se importaron
+        antes en este espacio: se saltarán.</div>
+      {% endif %}
+
+      <h3>Personas</h3>
+      <table class="table table-sm">
+        <thead><tr><th>En el PDF</th><th>Entradas</th><th>Horas</th><th>Asignar a</th></tr></thead>
+        <tbody>
+          {% for person in preview.people %}
+          <tr>
+            <td>{{ person.name }}<input type="hidden" name="person_name" value="{{ person.name }}"></td>
+            <td>{{ person.entry_count }}</td>
+            <td>{{ hours(person.total_seconds) }}</td>
+            <td>
+              <select name="person_user" class="form-select form-select-sm">
+                <option value="">Fantasma «{{ person.name }}» (nuevo o el que ya exista)</option>
+                {% for member in members %}
+                <option value="{{ member.id }}" {% if member.id == person.user_id %}selected{% endif %}>
+                  {{ member.name }}{% if member.is_ghost %} (fantasma){% else %} · {{ member.email }}{% endif %}
+                </option>
+                {% endfor %}
+              </select>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <h3>Labels</h3>
+      <p class="text-secondary">Primer trozo de «proyecto - tarea» de Clockify = label; el resto =
+        sublabel. Las que no existan se crean.</p>
+      <table class="table table-sm">
+        <thead><tr><th>En Clockify</th><th>Entradas</th><th>Horas</th><th>Label › sublabel</th></tr></thead>
+        <tbody>
+          {% for label in preview.labels %}
+          <tr>
+            <td>{{ label.project_line or "(sin proyecto)" }}</td>
+            <td>{{ label.entry_count }}</td>
+            <td>{{ hours(label.total_seconds) }}</td>
+            <td>
+              {{ label.label }}{% if not label.label_exists %} <span class="badge bg-blue-lt">nueva</span>{% endif %}
+              {% if label.sublabel %} › {{ label.sublabel }}{% if not label.sublabel_exists %} <span class="badge bg-blue-lt">nueva</span>{% endif %}{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card-footer d-flex gap-2">
+      <button type="submit" class="btn btn-primary">Importar</button>
+      <a class="btn btn-secondary" href="{{ request.url }}">Cancelar</a>
+    </div>
+  </form>
+
+  {% else %}
+  <form method="post" enctype="multipart/form-data" class="card">
+    <input type="hidden" name="step" value="preview">
+    <div class="card-body">
+      <div class="mb-3">
+        <label class="form-label">Espacio</label>
+        <select name="workspace_id" class="form-select" required>
+          {% for item in workspaces %}
+          <option value="{{ item.id }}">{{ item.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Proyecto de destino</label>
+        <input name="project_name" class="form-control" maxlength="80" required
+          placeholder="Nombre de un proyecto del espacio (si no existe, se crea)">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">PDF</label>
+        <input type="file" name="file" accept="application/pdf" class="form-control" required>
+      </div>
+      <p class="text-secondary mb-0">Primero verás una vista previa: no se guarda nada hasta
+        confirmar.</p>
+    </div>
+    <div class="card-footer">
+      <button type="submit" class="btn btn-primary">Vista previa</button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

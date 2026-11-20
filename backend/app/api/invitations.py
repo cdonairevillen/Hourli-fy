@@ -7,6 +7,7 @@ from app.models import Invitation, Membership, Project, ProjectMember, User, Wor
 from app.models.common import utc_now
 from app.schemas import InvitationPreview, WorkspaceRead
 from app.services.access import grant_project
+from app.services.ghosts import claim_ghost
 from app.services.workspaces import invitation_status, workspace_read
 
 router = APIRouter(prefix="/invitations", tags=["invitations"])
@@ -31,6 +32,7 @@ def preview_invitation(token: str, session: SessionDep) -> InvitationPreview:
     workspace = session.get_one(Workspace, invitation.workspace_id)
     project = session.get(Project, invitation.project_id) if invitation.project_id else None
     owner = session.get_one(User, workspace.owner_id)
+    ghost = session.get(User, invitation.claim_user_id) if invitation.claim_user_id else None
     return InvitationPreview(
         workspace_name=workspace.name,
         owner_name=owner.name,
@@ -38,6 +40,7 @@ def preview_invitation(token: str, session: SessionDep) -> InvitationPreview:
         status=invitation_status(invitation, workspace, project),
         project_id=invitation.project_id,
         project_name=project.name if project else None,
+        claim_user_name=ghost.name if ghost else None,
     )
 
 
@@ -56,6 +59,14 @@ def accept_invitation(token: str, session: SessionDep, user: CurrentUser) -> Wor
     project = session.get(Project, invitation.project_id) if invitation.project_id else None
     if invitation_status(invitation, workspace, project) != "active":
         raise HTTPException(status.HTTP_410_GONE, "La invitación ya no es válida")
+
+    if invitation.claim_user_id is not None:
+        # Link para reclamar un fantasma: me quedo sus horas, sus espacios y sus accesos.
+        claim_ghost(session, session.get_one(User, invitation.claim_user_id), user)
+        invitation.uses += 1
+        session.add(invitation)
+        session.commit()
+        return workspace_read(workspace, user.id)
 
     membership = session.get(Membership, (workspace.id, user.id))
     active = membership is not None and membership.removed_at is None

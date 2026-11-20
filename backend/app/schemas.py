@@ -86,6 +86,8 @@ class MemberRead(BaseModel):
     # True = ve todos los proyectos del espacio; False = solo los de project_ids.
     all_projects: bool
     project_ids: list[uuid.UUID]
+    # Usuario fantasma (horas importadas de alguien sin cuenta): se puede reclamar con un link.
+    is_ghost: bool = False
 
 
 class MemberAccessUpdate(BaseModel):
@@ -115,6 +117,8 @@ class InvitationRead(BaseModel):
     # null = invitación al espacio entero.
     project_id: uuid.UUID | None
     project_name: str | None
+    # Link para reclamar las horas de un usuario fantasma (null = invitación normal).
+    claim_user_name: str | None = None
 
 
 class InvitationCreated(InvitationRead):
@@ -132,6 +136,8 @@ class InvitationPreview(BaseModel):
     # Si invita solo a un proyecto (si no, null: al espacio entero).
     project_id: uuid.UUID | None
     project_name: str | None
+    # Si es un link para reclamar las horas de un usuario fantasma, su nombre.
+    claim_user_name: str | None = None
 
 
 # --- Catálogo: proyectos, tipologías ("labels") y subtipologías ("sublabels") ---
@@ -300,3 +306,84 @@ class ReportEntry(TimeEntryRead):
 class ReportEntriesPage(BaseModel):
     total: int
     items: list[ReportEntry]
+
+
+# --- Importar informes de Clockify (PDF "Informe detallado") ---
+
+
+class ImportPerson(BaseModel):
+    """Una persona del PDF, sus horas y a quién se le asignan."""
+
+    # Tal cual sale en el PDF.
+    name: str
+    entry_count: int
+    total_seconds: int
+    # Miembro sugerido (mismo nombre, o el email empieza por ese nombre). null = fantasma nuevo.
+    user_id: uuid.UUID | None
+    user_name: str | None
+    is_ghost: bool
+
+
+class ImportLabel(BaseModel):
+    """Una línea "proyecto - tarea" de Clockify y la label/sublabel en la que se guardará."""
+
+    project_line: str
+    entry_count: int
+    total_seconds: int
+    label: str
+    sublabel: str | None
+    # False = se creará al importar.
+    label_exists: bool
+    sublabel_exists: bool
+
+
+class ImportPreview(BaseModel):
+    period: str
+    # Total de la cabecera del PDF: ya se ha comprobado que cuadra con la suma de las entradas.
+    total_seconds: int
+    entry_count: int
+    first_day: date
+    last_day: date
+    # Entradas que ya se importaron antes en este espacio (no se volverán a crear).
+    duplicate_count: int
+    people: list[ImportPerson]
+    labels: list[ImportLabel]
+
+
+class ImportPersonChoice(BaseModel):
+    name: str
+    # Miembro activo del espacio; null = fantasma (se reutiliza uno con ese nombre si ya existe).
+    user_id: uuid.UUID | None = None
+
+
+class ImportLabelChoice(BaseModel):
+    project_line: str
+    label: CatalogName
+    sublabel: CatalogName | None = None
+
+
+class ImportOptions(BaseModel):
+    """Cómo importar. Lo que no venga se rellena con lo sugerido en la vista previa."""
+
+    # Proyecto destino: uno del espacio, o un nombre (se usa el que se llame así o se crea).
+    project_id: uuid.UUID | None = None
+    project_name: CatalogName | None = None
+    people: list[ImportPersonChoice] = []
+    labels: list[ImportLabelChoice] = []
+
+
+class ImportResult(BaseModel):
+    project_id: uuid.UUID
+    created_count: int
+    # Ya estaban importadas (mismo PDF o informes que se solapan): no se duplican.
+    duplicate_count: int
+    # Se solapaban con otra de la misma persona: se movieron justo detrás, con la misma duración.
+    shifted_count: int
+    # Duraban más de 24 h (el máximo de un registro): se partieron en trozos seguidos.
+    split_count: int
+    # Duraban 0 segundos: no se guardan (no suman nada).
+    empty_count: int
+    imported_seconds: int
+    ghosts_created: list[str]
+    labels_created: int
+    sublabels_created: int

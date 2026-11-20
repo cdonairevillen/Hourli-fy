@@ -13,11 +13,13 @@ export class ApiError extends Error {
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  // Con FormData (subir archivos) el navegador pone él mismo el Content-Type con su "boundary".
+  const isForm = body instanceof FormData
   const response = await fetch(`${API_URL}/api${path}`, {
     method,
     credentials: 'include',
-    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    headers: body === undefined || isForm ? undefined : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
   })
   if (!response.ok) {
     const data = await response.json().catch(() => null)
@@ -34,6 +36,11 @@ export function apiGet<T>(path: string): Promise<T> {
 
 export function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return request<T>('POST', path, body ?? {})
+}
+
+// POST multipart (archivos): `form` lleva el archivo y los demás campos.
+export function apiUpload<T>(path: string, form: FormData): Promise<T> {
+  return request<T>('POST', path, form)
 }
 
 export function apiPatch<T>(path: string, body: unknown): Promise<T> {

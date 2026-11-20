@@ -5,17 +5,21 @@ que se salta las reglas de la API (límite de espacios, permisos...). Las restri
 propia BD (sin solapes, máx. 24 h, nombres únicos...) sí se siguen aplicando.
 """
 
+import base64
+import binascii
 import html
 import logging
 import uuid
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
-from sqladmin import Admin, ModelView, action
+from sqladmin import Admin, BaseView, ModelView, action, expose
 from sqladmin.audit import LoggingAuditBackend
 from sqladmin.authentication import AuthenticationBackend
 from sqlalchemy.orm import sessionmaker
-from sqlmodel import Session
+from sqlmodel import Session, select
+from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 
 from app.api.deps import is_admin
@@ -34,6 +38,16 @@ from app.models import (
     User,
     Workspace,
 )
+from app.schemas import ImportOptions, ImportPersonChoice
+from app.services.clockify_import import (
+    MAX_PDF_BYTES,
+    active_members,
+    build_preview,
+    format_seconds,
+    read_report,
+    run_import,
+)
+from app.services.ghosts import create_claim_invitation, ghost_workspace
 from app.services.passwords import authenticate, create_reset_link
 from app.services.rate_limit import LOGIN_LIMIT
 
@@ -98,7 +112,7 @@ class AdminAuth(AuthenticationBackend):
 class UserAdmin(ModelView, model=User):
     name_plural = "Usuarios"
     icon = "fa-solid fa-user"
-    column_list = ["id", "name", "email", "created_at", "deleted_at"]
+    column_list = ["id", "name", "email", "is_ghost", "created_at", "deleted_at"]
     column_searchable_list = ["name", "email"]
     column_sortable_list = ["name", "email", "created_at"]
     # Nunca se muestran ni se editan el hash de la contraseña ni el identificador de Google.
@@ -126,6 +140,9 @@ class UserAdmin(ModelView, model=User):
             user = session.get(User, user_id)
             if user is None or user.deleted_at is not None:
                 return HTMLResponse("Usuario no encontrado o eliminado.", status_code=404)
+            if user.is_ghost:
+                # Con contraseña, alguien entraría como el fantasma sin pasar por reclamarlo.
+                return HTMLResponse("Es un fantasma: usa «Link para reclamar».", status_code=409)
             link = create_reset_link(session, user)
             email = user.email
         token = request.cookies.get(SESSION_COOKIE)
@@ -138,6 +155,130 @@ class UserAdmin(ModelView, model=User):
             f"<p><a href='{request.url_for('admin:details', identity='user', pk=str(user_id))}'>"
             f"← Volver</a></p>"
         )
+
+    @action(
+        name="claim-link",
+        label="Link para reclamar",
+        confirmation_message="¿Generar un link para reclamar las horas de este fantasma?",
+        add_in_list=False,
+    )
+    async def claim_link(self, request: Request) -> HTMLResponse:
+        """Link de un solo uso (10 días) para que la persona real se quede las horas del fantasma.
+
+        Es el mismo link que genera el dueño desde Equipo: quien lo abre y lo acepta, lo reclama.
+        """
+        try:
+            user_id = uuid.UUID(request.query_params.get("pks", ""))
+        except ValueError:
+            return HTMLResponse("Elige un solo usuario.", status_code=400)
+        with admin_session_maker() as session:
+            ghost = session.get(User, user_id)
+            workspace = ghost_workspace(session, ghost) if ghost is not None else None
+            if ghost is None or not ghost.is_ghost or workspace is None:
+                return HTMLResponse("No es un fantasma activo.", status_code=404)
+            try:
+                _, token = create_claim_invitation(
+                    session, workspace, ghost, admin_user_id(request)
+                )
+            except HTTPException as error:
+                return HTMLResponse(html.escape(str(error.detail)), status_code=error.status_code)
+            name = ghost.name
+        link = f"{settings.frontend_url.rstrip('/')}/invite/{token}"
+        return HTMLResponse(
+            f"<p>Link para reclamar las horas de <strong>{html.escape(name)}</strong> (un solo "
+            f"uso, caduca en 10 días). Pásaselo a esa persona:</p>"
+            f"<p><input value='{html.escape(link)}' size='90' readonly onclick='this.select()'></p>"
+            f"<p><a href='{request.url_for('admin:details', identity='user', pk=str(user_id))}'>"
+            f"← Volver</a></p>"
+        )
+
+
+def admin_user_id(request: Request) -> uuid.UUID | None:
+    """Admin que hace la petición (entró por el formulario del panel o con la cookie de la app)."""
+    from_form = request.session.get("user_id")
+    if from_form:
+        return uuid.UUID(from_form)
+    token = request.cookies.get(SESSION_COOKIE)
+    return read_session_token(token) if token else None
+
+
+class ImportAdmin(BaseView):
+    """Importar un PDF de Clockify a cualquier espacio. Usa el mismo servicio que la ruta del
+    dueño (services/clockify_import.py); aquí solo está el formulario.
+
+    Entre la vista previa y la confirmación no se guarda nada: el PDF viaja de vuelta en un campo
+    oculto (en base64) y se vuelve a leer al confirmar.
+    """
+
+    name = "Importar Clockify"
+    icon = "fa-solid fa-file-import"
+
+    @expose("/import", methods=["GET", "POST"], identity="import")
+    async def import_page(self, request: Request):
+        context: dict = {"hours": format_seconds}
+        if request.method == "POST":
+            # El PDF en base64 pesa un tercio más que el archivo.
+            form = await request.form(max_part_size=MAX_PDF_BYTES * 2)
+            # Leer el PDF y escribir en la BD bloquea: en otro hilo, como las rutas `def`.
+            context |= await run_in_threadpool(handle_import_form, form)
+        if "preview" not in context and "result" not in context:
+            with admin_session_maker() as session:
+                context["workspaces"] = session.exec(
+                    select(Workspace).where(Workspace.archived.is_(False)).order_by(Workspace.name)
+                ).all()
+        status_code = 400 if "error" in context else 200
+        return await self.templates.TemplateResponse(
+            request, "admin_import.html", context, status_code=status_code
+        )
+
+
+def handle_import_form(form) -> dict:
+    """Paso "preview" (llega el archivo) o "confirm" (llega el PDF en base64 y a quién va cada
+    persona). Devuelve lo que pinta la plantilla."""
+    step = form.get("step")
+    project_name = str(form.get("project_name", "")).strip()[:80]
+    try:
+        workspace_id = uuid.UUID(str(form.get("workspace_id", "")))
+        if step == "preview":
+            data = form["file"].file.read(MAX_PDF_BYTES + 1)
+        else:
+            data = base64.b64decode(str(form.get("pdf", "")), validate=True)
+    except (ValueError, KeyError, AttributeError, binascii.Error):
+        return {"error": "Faltan datos del formulario: vuelve a empezar."}
+    if not project_name:
+        return {"error": "Escribe el proyecto de destino."}
+
+    with admin_session_maker() as session:
+        workspace = session.get(Workspace, workspace_id)
+        if workspace is None:
+            return {"error": "Espacio no encontrado."}
+        try:
+            report = read_report(data)
+            if step == "preview":
+                members = [user for _, user in active_members(session, workspace.id)]
+                return {
+                    "workspace": workspace,
+                    "project_name": project_name,
+                    "preview": build_preview(session, workspace, report),
+                    "members": sorted(members, key=lambda user: user.name.lower()),
+                    "pdf": base64.b64encode(data).decode(),
+                }
+            people = [
+                ImportPersonChoice(name=name, user_id=uuid.UUID(user_id) if user_id else None)
+                for name, user_id in zip(
+                    form.getlist("person_name"), form.getlist("person_user"), strict=True
+                )
+            ]
+            options = ImportOptions(project_name=project_name, people=people)
+            result = run_import(session, workspace, report, options)
+        except HTTPException as error:
+            return {"error": str(error.detail)}
+        except ValueError:
+            return {"error": "Alguna persona tiene una asignación no válida."}
+        logger.warning(
+            "Importación de Clockify en %s: %s registros", workspace.id, result.created_count
+        )
+        return {"workspace": workspace, "result": result}
 
 
 class WorkspaceAdmin(ModelView, model=Workspace):
@@ -242,6 +383,8 @@ def setup_admin(app: FastAPI) -> Admin:
         session_maker=admin_session_maker,
         base_url="/admin",
         title="Hourli-fy · Admin",
+        # Plantillas propias (la del importador); las de SQLAdmin se siguen usando igual.
+        templates_dir=str(Path(__file__).parent / "templates"),
         authentication_backend=AdminAuth(
             secret_key=settings.secret_key,
             # Otro nombre: "session" es ya la cookie de la app y la pisaría.
@@ -254,4 +397,5 @@ def setup_admin(app: FastAPI) -> Admin:
     )
     for view in ADMIN_VIEWS:
         admin.add_view(view)
+    admin.add_view(ImportAdmin)
     return admin

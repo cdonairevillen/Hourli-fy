@@ -38,6 +38,14 @@ class TimeEntry(SQLModel, table=True):
             name="ex_time_entries_no_overlap",
             using="gist",
         ),
+        # Una entrada importada de Clockify no se importa dos veces en el mismo espacio.
+        Index(
+            "uq_time_entries_import_key",
+            "workspace_id",
+            "import_key",
+            unique=True,
+            postgresql_where=text("import_key IS NOT NULL"),
+        ),
     )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -55,3 +63,6 @@ class TimeEntry(SQLModel, table=True):
     updated_at: datetime = Field(
         default_factory=utc_now, sa_type=TZDateTime, sa_column_kwargs={"onupdate": func.now()}
     )
+    # Huella de la entrada original de un PDF de Clockify (null = creada en la app). Sirve para
+    # no duplicar horas al reimportar el mismo informe.
+    import_key: str | None = None
